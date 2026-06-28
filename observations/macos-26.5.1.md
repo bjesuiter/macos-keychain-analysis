@@ -847,3 +847,46 @@ Important finding:
 - An item created by `keychain-probe` remained readable after rebuild in the sense that all reads succeeded, but access was not silent.
 - The four prompts came in the same two wording classes seen in earlier double-prompt proofs: confidential-information use and key access.
 - The ACL output still showed the old initial CDHash in the partition list after rebuild, which may explain why the rebuilt ad-hoc binary prompted.
+
+## Proof 12: signed keychain-probe-created item after rebuild
+
+Goal:
+- Build `keychain-probe`.
+- Sign it with stable Developer ID identity `584EFC30BFC2F2BAC6BC900457C8BB19671D0D18` / `Developer ID Application: Benjamin Jesuiter (BB38WRH6VJ)`.
+- Use stable codesign identifier `dev.bjesuiter.macos-keychain-analysis.keychain-probe`.
+- Create a Keychain item with the signed probe.
+- Rebuild and re-sign the probe with the same identity and identifier.
+- Read the same item after rebuild.
+
+Observed signing identity:
+- `Developer ID Application: Benjamin Jesuiter (BB38WRH6VJ)`
+- Team ID: `BB38WRH6VJ`
+- Codesign identifier: `dev.bjesuiter.macos-keychain-analysis.keychain-probe`
+
+Observed code identity:
+- Initial CDHash: `9d0fbe266c74ef2749b116d1bea353d7b8b7dd0a`
+- Rebuilt CDHash: `994c3496916983d648e7bd7a36820e2212e6da8b`
+- CDHash changed: yes
+- Designated requirement changed: no
+
+Designated requirement both before and after rebuild:
+
+```text
+identifier "dev.bjesuiter.macos-keychain-analysis.keychain-probe" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] /* exists */ and certificate leaf[field.1.2.840.113635.100.6.1.13] /* exists */ and certificate leaf[subject.OU] = BB38WRH6VJ
+```
+
+Observed prompt behavior:
+- No prompts were reported during create, pre-rebuild reads, ACL list, post-rebuild reads, or final ACL list.
+- First post-rebuild read succeeded and matched the expected disposable secret.
+- Second post-rebuild read succeeded and matched the expected disposable secret.
+
+Observed ACL details:
+- ACL output included the built `keychain-probe` executable path as a trusted application.
+- Partition list used Team ID instead of raw CDHash:
+  - `teamid:BB38WRH6VJ`
+- The Team ID partition remained the same after rebuild.
+
+Important finding:
+- Stable Developer ID signing preserved access across rebuild even though the CDHash changed.
+- This supports the intended model: use stable signing identity/designated requirement rather than ad-hoc rebuilt binaries or CDHash grants.
+- For Varlock helper updates, a stable signed helper should avoid re-prompting users merely because the helper binary was updated.

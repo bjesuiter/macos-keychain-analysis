@@ -157,6 +157,15 @@ Questions:
 - Is creator ownership tied to path, designated requirement, CDHash, or another identity?
 - Does this behave differently from Proof 10's `/usr/bin/security`-created item with Always Allow?
 
+### 12. signed keychain-probe-created item after rebuild
+
+Build `keychain-probe`, sign it with a stable identity and identifier, create a Keychain item, rebuild and re-sign with the same identity/identifier, then read the same item again.
+
+Questions:
+- Does a stable signing identity/designated requirement preserve Keychain access across rebuilds?
+- Can the CDHash change while the designated requirement remains stable and reads stay silent?
+- Is this the right model for Varlock helper updates?
+
 ## Proof ideas
 
 ### Update an existing ACL entry like original `addToACL`
