@@ -68,6 +68,15 @@ Questions:
 - If `/usr/bin/security` creates the item, does `keychain-probe acl-list` produce a GUI prompt by itself?
 - Can Security.framework inspect ACLs for an item created by `/usr/bin/security` without reading the secret data?
 
+### 5. cross-binary read twice with one-time authorization
+
+Create an item with `/usr/bin/security`, read it twice with `keychain-probe`, and inspect ACLs before and after each read.
+
+Questions:
+- If the user uses one-time authorization for the first `keychain-probe read`, does the second read prompt again?
+- Does one-time authorization add `keychain-probe` to the item's persistent ACL?
+- Do ACL reads remain prompt-free before and after one-time authorizations?
+
 ## Proof ideas
 
 ### Update existing item
@@ -204,6 +213,7 @@ macos-keychain-analysis/
     04-security-cli-create-probe-read/
     04a-security-cli-create-probe-read-no-acl/
     04b-security-cli-create-probe-acl-only/
+    05-cross-binary-read-twice/
     ...
   scripts/
     cleanup-all.ts

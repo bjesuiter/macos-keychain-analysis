@@ -373,3 +373,63 @@ Observed ACL details:
 
 Important finding:
 - ACL requests are allowed without a GUI prompt in this scenario. A process can inspect an item's ACL with `SecKeychainItemCopyAccess` / `SecAccessCopyACLList` / `SecACLCopyContents` without being authorized to read the secret value.
+
+## Proof 05: cross-binary read twice with one-time authorization
+
+Creator: `/usr/bin/security`
+Reader: `packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe`
+
+Command sequence:
+
+```fish
+/usr/bin/swift build --package-path packages/keychain-probe
+/usr/bin/security delete-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-05.cross-binary-read-twice
+/usr/bin/security add-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-05.cross-binary-read-twice -w disposable-proof-secret -l 'macos-keychain-analysis proof 05 cross binary read twice'
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe whoami
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe acl-list --service macos-keychain-analysis.proof-05.cross-binary-read-twice --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe read --service macos-keychain-analysis.proof-05.cross-binary-read-twice --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe acl-list --service macos-keychain-analysis.proof-05.cross-binary-read-twice --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe read --service macos-keychain-analysis.proof-05.cross-binary-read-twice --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe acl-list --service macos-keychain-analysis.proof-05.cross-binary-read-twice --account macos-keychain-analysis
+```
+
+Expected prompt behavior:
+- With one-time authorization, the first `keychain-probe read` should prompt.
+- The second `keychain-probe read` should prompt again if one-time authorization is not persistent.
+- ACL reads should remain prompt-free and should show whether persistent trust changed.
+
+Observed prompt behavior:
+- Prompt shown during cleanup: no; command exited 44 because the item was missing.
+- Prompt shown during `/usr/bin/security` create: no
+- Prompt shown during ACL read before password reads: no
+- Prompt shown during first `keychain-probe read`: yes, two GUI prompts
+- Prompt shown during ACL read after first password read: no
+- Prompt shown during second `keychain-probe read`: yes, two GUI prompts again
+- Prompt shown during ACL read after second password read: no
+- App name shown in prompts: `keychain-probe`
+- Keychain named in prompts: `Anmeldung`
+- Item named in prompts: `macos-keychain-analysis proof 05 cross binary read twice`
+- User action: entered the login keychain password and clicked/pressed the blue `Erlauben` button for one-time authorization; did not choose `Immer erlauben`.
+
+Prompt screenshots:
+- `observations/screenshots/proof-05-read1-prompt-1.png`
+- `observations/screenshots/proof-05-read1-prompt-2.png`
+- `observations/screenshots/proof-05-read2-prompt-1.png`
+- `observations/screenshots/proof-05-read2-prompt-2.png`
+
+Observed command result:
+- Build exit code: 0
+- Cleanup exit code: 44 when stale item was missing
+- Create exit code: 0
+- First keychain-probe read exit code: 0; read matched expected disposable secret: yes
+- Second keychain-probe read exit code: 0; read matched expected disposable secret: yes
+- All ACL list commands exited 0
+
+Observed ACL details:
+- ACL before reads included `/usr/bin/security` as a trusted application.
+- ACL after first one-time authorized read still included `/usr/bin/security`; no obvious `keychain-probe` trusted-application path appeared.
+- ACL after second one-time authorized read still included `/usr/bin/security`; no obvious `keychain-probe` trusted-application path appeared.
+
+Important finding:
+- One-time authorization does not persist for the next cross-binary read and does not add the reader binary to the persistent ACL.
+- Each cross-binary `keychain-probe read` produced the same two prompt wordings.

@@ -20,7 +20,9 @@
     "proof:04a": "bun run proofs/04a-security-cli-create-probe-read-no-acl/proof.ts",
     "proof:04a:cleanup": "bun run proofs/04a-security-cli-create-probe-read-no-acl/proof.ts --cleanup",
     "proof:04b": "bun run proofs/04b-security-cli-create-probe-acl-only/proof.ts",
-    "proof:04b:cleanup": "bun run proofs/04b-security-cli-create-probe-acl-only/proof.ts --cleanup"
+    "proof:04b:cleanup": "bun run proofs/04b-security-cli-create-probe-acl-only/proof.ts --cleanup",
+    "proof:05": "bun run proofs/05-cross-binary-read-twice/proof.ts",
+    "proof:05:cleanup": "bun run proofs/05-cross-binary-read-twice/proof.ts --cleanup"
   },
   "devDependencies": {
     "@types/bun": "latest"
