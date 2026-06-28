@@ -25,9 +25,39 @@ struct StatusResult: Encodable {
     let executable: String
 }
 
+struct ACLEntryResult: Encodable {
+    let description: String?
+    let promptSelector: UInt32
+    let trustedApplicationPaths: [String]
+}
+
+struct ACLListResult: Encodable {
+    let service: String
+    let account: String
+    let executable: String
+    let entries: [ACLEntryResult]
+}
+
+struct ACLContainsResult: Encodable {
+    let service: String
+    let account: String
+    let path: String
+    let contains: Bool
+}
+
+struct StdioRequest: Decodable {
+    let command: String?
+    let action: String?
+    let service: String?
+    let account: String?
+    let value: String?
+    let label: String?
+    let path: String?
+}
+
 func printJson<T: Encodable>(_ value: T) {
     let encoder = JSONEncoder()
-    encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+    encoder.outputFormatting = [.sortedKeys]
     let data = try! encoder.encode(value)
     print(String(data: data, encoding: .utf8)!)
 }
@@ -136,6 +166,80 @@ func metadata(service: String, account: String) {
     printJson(JsonOk(result: printable))
 }
 
+func itemRef(service: String, account: String) -> SecKeychainItem {
+    var query = baseQuery(service: service, account: account)
+    query[kSecReturnRef] = true
+    query[kSecMatchLimit] = kSecMatchLimitOne
+
+    var result: AnyObject?
+    let status = SecItemCopyMatching(query as CFDictionary, &result)
+    guard status == errSecSuccess, let result else {
+        fail("SecItemCopyMatching item ref failed", status: status)
+    }
+    return result as! SecKeychainItem
+}
+
+func aclEntries(service: String, account: String) -> [ACLEntryResult] {
+    let item = itemRef(service: service, account: account)
+
+    var access: SecAccess?
+    let accessStatus = SecKeychainItemCopyAccess(item, &access)
+    guard accessStatus == errSecSuccess, let access else {
+        fail("SecKeychainItemCopyAccess failed", status: accessStatus)
+    }
+
+    var aclList: CFArray?
+    let aclStatus = SecAccessCopyACLList(access, &aclList)
+    guard aclStatus == errSecSuccess, let aclList else {
+        fail("SecAccessCopyACLList failed", status: aclStatus)
+    }
+
+    return (aclList as! [SecACL]).map { acl in
+        var appList: CFArray?
+        var description: CFString?
+        var promptSelector = SecKeychainPromptSelector()
+        let contentsStatus = SecACLCopyContents(acl, &appList, &description, &promptSelector)
+        guard contentsStatus == errSecSuccess else {
+            fail("SecACLCopyContents failed", status: contentsStatus)
+        }
+
+        let paths = ((appList as? [SecTrustedApplication]) ?? []).compactMap { app -> String? in
+            var appData: CFData?
+            let appStatus = SecTrustedApplicationCopyData(app, &appData)
+            guard appStatus == errSecSuccess, let appData else { return nil }
+            return String(data: appData as Data, encoding: .utf8)
+        }
+
+        return ACLEntryResult(
+            description: description as String?,
+            promptSelector: UInt32(promptSelector.rawValue),
+            trustedApplicationPaths: paths
+        )
+    }
+}
+
+func aclList(service: String, account: String) {
+    printJson(JsonOk(result: ACLListResult(
+        service: service,
+        account: account,
+        executable: Bundle.main.executablePath ?? CommandLine.arguments[0],
+        entries: aclEntries(service: service, account: account)
+    )))
+}
+
+func aclContains(service: String, account: String, path: String) {
+    let entries = aclEntries(service: service, account: account)
+    let contains = entries.contains { entry in
+        entry.trustedApplicationPaths.contains(path)
+    }
+    printJson(JsonOk(result: ACLContainsResult(
+        service: service,
+        account: account,
+        path: path,
+        contains: contains
+    )))
+}
+
 func usage() -> Never {
     print("""
     keychain-probe: minimal macOS Keychain probe inspired by Varlock's Swift daemon code
@@ -146,13 +250,49 @@ func usage() -> Never {
       read --service S --account A
       delete --service S --account A
       metadata --service S --account A
+      acl-list --service S --account A
+      acl-contains --service S --account A --path PATH
       daemon-stdio
       whoami
 
-    daemon-stdio reads one command per line using the same command syntax without argv[0].
-    Example line: read --service test --account me
+    daemon-stdio reads one JSON request per line.
+    Example lines:
+      {"command":"read","service":"test","account":"me"}
+      {"action":"exit"}
     """)
     exit(2)
+}
+
+func args(from request: StdioRequest) throws -> [String] {
+    guard let command = request.command ?? request.action else {
+        throw NSError(domain: "KeychainProbe", code: 1, userInfo: [NSLocalizedDescriptionKey: "Missing command or action"])
+    }
+
+    var args = [command]
+    if let service = request.service { args += ["--service", service] }
+    if let account = request.account { args += ["--account", account] }
+    if let value = request.value { args += ["--value", value] }
+    if let label = request.label { args += ["--label", label] }
+    if let path = request.path { args += ["--path", path] }
+    return args
+}
+
+func runJsonLine(_ line: String) -> Bool {
+    guard let data = line.data(using: .utf8) else {
+        printJson(JsonError(error: "Input line was not UTF-8", status: nil, statusMessage: nil))
+        return true
+    }
+
+    do {
+        let request = try JSONDecoder().decode(StdioRequest.self, from: data)
+        let requestArgs = try args(from: request)
+        if requestArgs.first == "exit" { return false }
+        run(requestArgs)
+        return true
+    } catch {
+        printJson(JsonError(error: error.localizedDescription, status: nil, statusMessage: nil))
+        return true
+    }
 }
 
 func run(_ args: [String]) {
@@ -173,6 +313,14 @@ func run(_ args: [String]) {
         delete(service: requireArg("--service", in: args), account: requireArg("--account", in: args))
     case "metadata":
         metadata(service: requireArg("--service", in: args), account: requireArg("--account", in: args))
+    case "acl-list":
+        aclList(service: requireArg("--service", in: args), account: requireArg("--account", in: args))
+    case "acl-contains":
+        aclContains(
+            service: requireArg("--service", in: args),
+            account: requireArg("--account", in: args),
+            path: requireArg("--path", in: args)
+        )
     case "whoami":
         printJson(JsonOk(result: StatusResult(
             status: "ready",
@@ -186,9 +334,7 @@ func run(_ args: [String]) {
             executable: CommandLine.arguments[0]
         )))
         while let line = readLine() {
-            let parts = line.split(separator: " ").map(String.init)
-            if parts.first == "exit" { break }
-            run(parts)
+            if !runJsonLine(line) { break }
         }
     default:
         usage()

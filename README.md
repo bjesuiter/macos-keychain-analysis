@@ -22,18 +22,22 @@ bun run keychain-probe:build
 bun run keychain-probe:run -- add --service dev.varlock.probe --account alice --value secret
 bun run keychain-probe:run -- read --service dev.varlock.probe --account alice
 bun run keychain-probe:run -- metadata --service dev.varlock.probe --account alice
+bun run keychain-probe:run -- acl-list --service dev.varlock.probe --account alice
+bun run keychain-probe:run -- acl-contains --service dev.varlock.probe --account alice --path /path/to/binary
 bun run keychain-probe:run -- upsert --service dev.varlock.probe --account alice --value changed
 bun run keychain-probe:run -- delete --service dev.varlock.probe --account alice
 ```
 
-For long-running-process tests:
+For long-running-process tests, `daemon-stdio` accepts one JSON request per line:
 
 ```fish
 bun run keychain-probe:run -- daemon-stdio
 # then type lines like:
-# add --service dev.varlock.probe --account alice --value secret
-# read --service dev.varlock.probe --account alice
-# exit
+# {"command":"add","service":"dev.varlock.probe","account":"alice","value":"secret"}
+# {"command":"read","service":"dev.varlock.probe","account":"alice"}
+# {"command":"acl-list","service":"dev.varlock.probe","account":"alice"}
+# {"command":"acl-contains","service":"dev.varlock.probe","account":"alice","path":"/path/to/binary"}
+# {"action":"exit"}
 ```
 
 ## Proofs
