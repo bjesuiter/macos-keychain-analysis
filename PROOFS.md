@@ -86,6 +86,23 @@ Questions:
 - Does Always Allow add `keychain-probe` to the item's ACL list?
 - Or is the persistent allowance stored out-of-band somewhere else on the system?
 
+### 6. security-cli create with explicit trusted keychain-probe
+
+Create an item with `/usr/bin/security add-generic-password -T keychain-probe`, then read it with `keychain-probe`.
+
+Questions:
+- Does `-T keychain-probe` add `keychain-probe` to the item ACL at creation time?
+- Does pre-authorizing `keychain-probe` avoid the first-read GUI prompt?
+- Do repeated `keychain-probe read` calls stay silent?
+
+### 6a. security-cli create with explicit trusted keychain-probe, read only
+
+Repeat proof 6 without any ACL reads, to isolate whether `-T keychain-probe` pre-authorizes password-value reads.
+
+Questions:
+- Do `keychain-probe read` calls stay silent when the item was created with `security -T keychain-probe`?
+- Were proof 6 prompts caused by ACL reads rather than secret reads?
+
 ## Proof ideas
 
 ### Update existing item
@@ -224,6 +241,8 @@ macos-keychain-analysis/
     04b-security-cli-create-probe-acl-only/
     05-cross-binary-read-twice/
     05a-cross-binary-read-twice-always-allow/
+    06-security-cli-create-trust-probe/
+    06a-security-cli-create-trust-probe-read-only/
     ...
   scripts/
     cleanup-all.ts

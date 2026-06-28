@@ -491,3 +491,115 @@ Observed ACL details:
 Important finding:
 - Always Allow persists by mutating the item ACL list: `keychain-probe` was added as a trusted application.
 - This falsifies the hypothesis that Always Allow is only stored out-of-band outside the item ACL.
+
+## Proof 06: security-cli create with explicit trusted keychain-probe
+
+Creator: `/usr/bin/security`
+Trusted reader requested at creation time: `packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe`
+
+Command sequence:
+
+```fish
+/usr/bin/swift build --package-path packages/keychain-probe
+/usr/bin/security delete-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-06.security-create-trust-probe
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe whoami
+/usr/bin/security add-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-06.security-create-trust-probe -w disposable-proof-secret -l 'macos-keychain-analysis proof 06 security create trust probe' -T packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe acl-list --service macos-keychain-analysis.proof-06.security-create-trust-probe --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe read --service macos-keychain-analysis.proof-06.security-create-trust-probe --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe read --service macos-keychain-analysis.proof-06.security-create-trust-probe --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe acl-list --service macos-keychain-analysis.proof-06.security-create-trust-probe --account macos-keychain-analysis
+```
+
+Expected prompt behavior:
+- `/usr/bin/security` creation with `-T keychain-probe` should be silent.
+- Because the ACL includes `keychain-probe`, `keychain-probe read` was expected to be silent.
+- ACL reads were previously observed as prompt-free, so `acl-list` was expected to be silent.
+
+Observed prompt behavior:
+- Prompt shown during cleanup: no; command exited 44 because the item was missing.
+- Prompt shown during `/usr/bin/security` create with `-T keychain-probe`: no
+- Prompt shown during first `keychain-probe acl-list` before password reads: yes
+- User action on first ACL prompt: entered the login keychain password and clicked/pressed one-time `Erlauben`; did not choose `Immer erlauben`.
+- Prompt shown during first `keychain-probe read`: no
+- Prompt shown during second `keychain-probe read`: no
+- Prompt shown during final `keychain-probe acl-list`: yes
+- User action on final ACL prompt: entered the login keychain password and clicked/pressed one-time `Erlauben`; did not choose `Immer erlauben`.
+- App name shown in prompts: `keychain-probe`
+- Keychain named in prompts: `Anmeldung`
+- Item named in prompts: `macos-keychain-analysis proof 06 security create trust probe`
+
+Prompt screenshots:
+- `observations/screenshots/proof-06-acl-prompt-before-read.png`
+- `observations/screenshots/proof-06-acl-prompt-after-read.png`
+
+Observed command result:
+- Build exit code: 0
+- Cleanup exit code: 44 when stale item was missing
+- Create exit code: 0
+- First ACL list exit code: 0
+- First keychain-probe read exit code: 0; read matched expected disposable secret: yes
+- Second keychain-probe read exit code: 0; read matched expected disposable secret: yes
+- Final ACL list exit code: 0
+
+Observed ACL details:
+- ACL list before reads included the built `keychain-probe` executable path.
+- ACL list after reads still included the built `keychain-probe` executable path.
+- Unlike security-created items that trust `/usr/bin/security`, this `-T keychain-probe` item did not list `/usr/bin/security` as a trusted app in the captured ACL output.
+
+Important finding:
+- `security add-generic-password -T keychain-probe` pre-authorizes `keychain-probe` for secret reads: both `keychain-probe read` calls were silent.
+- However, `keychain-probe acl-list` prompted when `keychain-probe` was the trusted app added by `-T`; one-time authorization did not persist to the later ACL read.
+- This complicates the earlier proof 04b finding: ACL reads are not universally prompt-free. They were prompt-free for a security-created item whose ACL trusted `/usr/bin/security`, but prompted for an item explicitly trusting `keychain-probe` via `-T`.
+
+Open questions:
+- Why does `keychain-probe acl-list` prompt for this `-T keychain-probe` item even though the same binary is listed as trusted and secret reads are silent?
+- Is this due to ACL-entry shape differences between default creator trust, Always Allow mutation, and `security -T` creation?
+
+## Proof 06a: security-cli create with explicit trusted keychain-probe, read only
+
+Creator: `/usr/bin/security`
+Trusted reader requested at creation time: `packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe`
+
+Command sequence:
+
+```fish
+/usr/bin/swift build --package-path packages/keychain-probe
+/usr/bin/security delete-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-06a.security-create-trust-probe-read-only
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe whoami
+/usr/bin/security add-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-06a.security-create-trust-probe-read-only -w disposable-proof-secret -l 'macos-keychain-analysis proof 06a security create trust probe read only' -T packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe read --service macos-keychain-analysis.proof-06a.security-create-trust-probe-read-only --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe read --service macos-keychain-analysis.proof-06a.security-create-trust-probe-read-only --account macos-keychain-analysis
+```
+
+Expected prompt behavior:
+- No ACL reads are performed.
+- If `security -T keychain-probe` fully pre-authorizes `keychain-probe`, both password reads should be silent.
+
+Observed prompt behavior:
+- Prompt shown during cleanup: no; command exited 44 because the item was missing.
+- Prompt shown during `/usr/bin/security` create with `-T keychain-probe`: no
+- Prompt shown during first `keychain-probe read`: yes, one GUI prompt
+- Prompt shown during second `keychain-probe read`: yes, one GUI prompt
+- App name shown in prompts: `keychain-probe`
+- Keychain named in prompts: `Anmeldung`
+- Item named in prompts: `macos-keychain-analysis proof 06a security create trust probe read only`
+
+Prompt screenshots:
+- `observations/screenshots/proof-06a-read1-prompt.png`
+- `observations/screenshots/proof-06a-read2-prompt.png`
+
+Prompt text observed:
+- Both prompts used the key-access wording: `keychain-probe möchte auf den Schlüssel „macos-keychain-analysis proof 06a security create trust probe read only“ in deinem Schlüsselbund zugreifen.`
+- Neither screenshot used the `vertraulichen Informationen verwenden` wording.
+
+Observed command result:
+- Build exit code: 0
+- Cleanup exit code: 44 when stale item was missing
+- Create exit code: 0
+- First keychain-probe read exit code: 0; read matched expected disposable secret: yes
+- Second keychain-probe read exit code: 0; read matched expected disposable secret: yes
+
+Important finding:
+- `security add-generic-password -T keychain-probe` did not make read-only access fully prompt-free in this isolated proof.
+- The prompts were key-access prompts, not confidential-information prompts.
+- This suggests `-T keychain-probe` may authorize secret-data use but not all item/key access needed by `SecItemCopyMatching`, or that the prompt is attached to a different authorization than the secret-read authorization.

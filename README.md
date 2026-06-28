@@ -76,7 +76,8 @@ Important findings so far:
 - Proof 02: `keychain-probe` can create and read its own generic password without a GUI prompt when the item ACL trusts that binary.
 - Proof 03: cross-binary secret reads prompt when `keychain-probe` creates the item and `/usr/bin/security` reads the password.
 - Proof 04 and 04a: cross-binary secret reads prompt when `/usr/bin/security` creates the item and `keychain-probe` reads the password.
-- Proof 04b: reading an item's ACLs with `keychain-probe acl-list` is allowed without a GUI prompt, even when the item was created by `/usr/bin/security` and `keychain-probe` is not listed as the trusted creator.
+- Proof 04b: reading an item's ACLs with `keychain-probe acl-list` is allowed without a GUI prompt for a default `/usr/bin/security`-created item that trusts `/usr/bin/security`.
 - Proof 04a: `keychain-probe read` alone produced two prompt wordings for one password read: one about using confidential information, and one about accessing the key. This is not caused by a later ACL read.
 - Proof 05: one-time authorization does not persist for the next cross-binary read and does not add the reader binary to the persistent ACL; the second read prompts again.
 - Proof 05a: Always Allow persists by mutating the item ACL list; `keychain-probe` is added as a trusted application, and the second read is silent.
+- Proof 06 and 06a: `/usr/bin/security add-generic-password -T keychain-probe` adds `keychain-probe` to the ACL, but does not make `keychain-probe` fully prompt-free. Read-only proof 06a still prompted with key-access wording, while the reads succeeded.

@@ -24,7 +24,11 @@
     "proof:05": "bun run proofs/05-cross-binary-read-twice/proof.ts",
     "proof:05:cleanup": "bun run proofs/05-cross-binary-read-twice/proof.ts --cleanup",
     "proof:05a": "bun run proofs/05a-cross-binary-read-twice-always-allow/proof.ts",
-    "proof:05a:cleanup": "bun run proofs/05a-cross-binary-read-twice-always-allow/proof.ts --cleanup"
+    "proof:05a:cleanup": "bun run proofs/05a-cross-binary-read-twice-always-allow/proof.ts --cleanup",
+    "proof:06": "bun run proofs/06-security-cli-create-trust-probe/proof.ts",
+    "proof:06:cleanup": "bun run proofs/06-security-cli-create-trust-probe/proof.ts --cleanup",
+    "proof:06a": "bun run proofs/06a-security-cli-create-trust-probe-read-only/proof.ts",
+    "proof:06a:cleanup": "bun run proofs/06a-security-cli-create-trust-probe-read-only/proof.ts --cleanup"
   },
   "devDependencies": {
     "@types/bun": "latest"
