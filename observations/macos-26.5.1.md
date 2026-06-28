@@ -433,3 +433,61 @@ Observed ACL details:
 Important finding:
 - One-time authorization does not persist for the next cross-binary read and does not add the reader binary to the persistent ACL.
 - Each cross-binary `keychain-probe read` produced the same two prompt wordings.
+
+## Proof 05a: cross-binary read twice with Always Allow
+
+Creator: `/usr/bin/security`
+Reader: `packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe`
+
+Command sequence:
+
+```fish
+/usr/bin/swift build --package-path packages/keychain-probe
+/usr/bin/security delete-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-05a.cross-binary-read-twice-always-allow
+/usr/bin/security add-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-05a.cross-binary-read-twice-always-allow -w disposable-proof-secret -l 'macos-keychain-analysis proof 05a cross binary read twice always allow'
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe whoami
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe acl-list --service macos-keychain-analysis.proof-05a.cross-binary-read-twice-always-allow --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe read --service macos-keychain-analysis.proof-05a.cross-binary-read-twice-always-allow --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe acl-list --service macos-keychain-analysis.proof-05a.cross-binary-read-twice-always-allow --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe read --service macos-keychain-analysis.proof-05a.cross-binary-read-twice-always-allow --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe acl-list --service macos-keychain-analysis.proof-05a.cross-binary-read-twice-always-allow --account macos-keychain-analysis
+```
+
+Expected prompt behavior:
+- First `keychain-probe read` should prompt.
+- User chooses `Immer erlauben` / Always Allow.
+- Second `keychain-probe read` should be silent if Always Allow persists.
+- ACL lists should reveal whether persistent allowance is stored in the item ACL or out-of-band.
+
+Observed prompt behavior:
+- Prompt shown during cleanup: no; command exited 44 because the item was missing.
+- Prompt shown during `/usr/bin/security` create: no
+- Prompt shown during ACL read before password reads: no
+- Prompt shown during first `keychain-probe read`: yes, one GUI prompt
+- User action: entered the login keychain password and clicked `Immer erlauben` / Always Allow.
+- Prompt shown during ACL read after Always Allow: no
+- Prompt shown during second `keychain-probe read`: no
+- Prompt shown during ACL read after second read: no
+- App name shown in prompt: `keychain-probe`
+- Keychain named in prompt: `Anmeldung`
+- Item named in prompt: `macos-keychain-analysis proof 05a cross binary read twice always allow`
+
+Prompt screenshot:
+- `observations/screenshots/proof-05a-always-allow-prompt.png`
+
+Observed command result:
+- Build exit code: 0
+- Cleanup exit code: 44 when stale item was missing
+- Create exit code: 0
+- First keychain-probe read exit code: 0; read matched expected disposable secret: yes
+- Second keychain-probe read exit code: 0; read matched expected disposable secret: yes
+- All ACL list commands exited 0
+
+Observed ACL details:
+- ACL before reads included `/usr/bin/security` as a trusted application.
+- ACL after first read with Always Allow included both the built `keychain-probe` executable path and `/usr/bin/security` as trusted applications.
+- ACL after second read still included both the built `keychain-probe` executable path and `/usr/bin/security`.
+
+Important finding:
+- Always Allow persists by mutating the item ACL list: `keychain-probe` was added as a trusted application.
+- This falsifies the hypothesis that Always Allow is only stored out-of-band outside the item ACL.

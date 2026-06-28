@@ -77,6 +77,15 @@ Questions:
 - Does one-time authorization add `keychain-probe` to the item's persistent ACL?
 - Do ACL reads remain prompt-free before and after one-time authorizations?
 
+### 5a. cross-binary read twice with Always Allow
+
+Create an item with `/usr/bin/security`, read it twice with `keychain-probe`, choose Always Allow on the first read, and inspect ACLs before and after each read.
+
+Questions:
+- Does Always Allow make the second `keychain-probe read` silent?
+- Does Always Allow add `keychain-probe` to the item's ACL list?
+- Or is the persistent allowance stored out-of-band somewhere else on the system?
+
 ## Proof ideas
 
 ### Update existing item
@@ -214,6 +223,7 @@ macos-keychain-analysis/
     04a-security-cli-create-probe-read-no-acl/
     04b-security-cli-create-probe-acl-only/
     05-cross-binary-read-twice/
+    05a-cross-binary-read-twice-always-allow/
     ...
   scripts/
     cleanup-all.ts
