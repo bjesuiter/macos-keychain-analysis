@@ -48,11 +48,30 @@ struct ACLContainsResult: Encodable {
     let contains: Bool
 }
 
+struct ACLFixResult: Encodable {
+    let service: String
+    let account: String?
+    let keychain: String?
+    let appPath: String
+    let modified: Bool
+}
+
+struct VerifyAccessAndFixResult: Encodable {
+    let service: String
+    let account: String
+    let keychain: String?
+    let appPath: String
+    let initialReadSucceeded: Bool
+    let modified: Bool
+    let finalReadSucceeded: Bool
+}
+
 struct StdioRequest: Decodable {
     let command: String?
     let action: String?
     let service: String?
     let account: String?
+    let keychain: String?
     let value: String?
     let label: String?
     let path: String?
@@ -98,6 +117,21 @@ func baseQuery(service: String, account: String) -> [CFString: Any] {
         kSecAttrService: service,
         kSecAttrAccount: account,
     ]
+}
+
+func searchList(keychainName: String?) -> [SecKeychain]? {
+    guard let keychainName, !keychainName.isEmpty else { return nil }
+
+    var keychain: SecKeychain?
+    let status = SecKeychainOpen(keychainName, &keychain)
+    guard status == errSecSuccess, let keychain else {
+        fail("SecKeychainOpen failed", status: status)
+    }
+    return [keychain]
+}
+
+func executablePath() -> String {
+    Bundle.main.executablePath ?? CommandLine.arguments[0]
 }
 
 func add(service: String, account: String, value: String, label: String?, update: Bool) {
@@ -170,9 +204,22 @@ func metadata(service: String, account: String) {
 }
 
 func itemRef(service: String, account: String) -> SecKeychainItem {
-    var query = baseQuery(service: service, account: account)
-    query[kSecReturnRef] = true
-    query[kSecMatchLimit] = kSecMatchLimitOne
+    itemRef(service: service, account: account, keychainName: nil)
+}
+
+func itemRef(service: String, account: String?, keychainName: String?) -> SecKeychainItem {
+    var query: [CFString: Any] = [
+        kSecClass: kSecClassGenericPassword,
+        kSecAttrService: service,
+        kSecReturnRef: true,
+        kSecMatchLimit: kSecMatchLimitOne,
+    ]
+    if let account, !account.isEmpty {
+        query[kSecAttrAccount] = account
+    }
+    if let list = searchList(keychainName: keychainName) {
+        query[kSecMatchSearchList] = list
+    }
 
     var result: AnyObject?
     let status = SecItemCopyMatching(query as CFDictionary, &result)
@@ -306,6 +353,121 @@ func aclContains(service: String, account: String, path: String) {
     )))
 }
 
+func addToACL(service: String, account: String?, keychainName: String?, appPath: String) -> Bool {
+    let item = itemRef(service: service, account: account, keychainName: keychainName)
+
+    var access: SecAccess?
+    let accessStatus = SecKeychainItemCopyAccess(item, &access)
+    guard accessStatus == errSecSuccess, let access else {
+        fail("SecKeychainItemCopyAccess failed", status: accessStatus)
+    }
+
+    var aclList: CFArray?
+    let aclStatus = SecAccessCopyACLList(access, &aclList)
+    guard aclStatus == errSecSuccess, let aclList else {
+        fail("SecAccessCopyACLList failed", status: aclStatus)
+    }
+
+    var trustedApp: SecTrustedApplication?
+    let trustedStatus = SecTrustedApplicationCreateFromPath(appPath, &trustedApp)
+    guard trustedStatus == errSecSuccess, let trustedApp else {
+        fail("SecTrustedApplicationCreateFromPath failed", status: trustedStatus)
+    }
+
+    var modified = false
+    for acl in (aclList as! [SecACL]) {
+        var appList: CFArray?
+        var description: CFString?
+        var promptSelector = SecKeychainPromptSelector()
+        let contentsStatus = SecACLCopyContents(acl, &appList, &description, &promptSelector)
+        guard contentsStatus == errSecSuccess else {
+            fail("SecACLCopyContents failed", status: contentsStatus)
+        }
+
+        // Original Varlock behavior: nil app list means unrestricted access; leave it alone.
+        guard let appList else { continue }
+        var apps = appList as! [SecTrustedApplication]
+        let alreadyAllowed = apps.contains { app in
+            var appData: CFData?
+            let appStatus = SecTrustedApplicationCopyData(app, &appData)
+            guard appStatus == errSecSuccess, let appData else { return false }
+            return String(data: appData as Data, encoding: .utf8) == appPath
+        }
+        guard !alreadyAllowed else { continue }
+
+        apps.append(trustedApp)
+        let setStatus = SecACLSetContents(acl, apps as CFArray, description ?? "" as CFString, promptSelector)
+        guard setStatus == errSecSuccess else {
+            fail("SecACLSetContents failed", status: setStatus)
+        }
+        modified = true
+    }
+
+    if modified {
+        let setAccessStatus = SecKeychainItemSetAccess(item, access)
+        guard setAccessStatus == errSecSuccess else {
+            fail("SecKeychainItemSetAccess failed", status: setAccessStatus)
+        }
+    }
+
+    return modified
+}
+
+func fixAccess(service: String, account: String?, keychainName: String?, appPath: String) {
+    let modified = addToACL(service: service, account: account, keychainName: keychainName, appPath: appPath)
+    printJson(JsonOk(result: ACLFixResult(
+        service: service,
+        account: account,
+        keychain: keychainName,
+        appPath: appPath,
+        modified: modified
+    )))
+}
+
+func verifyAccessAndFixACL(service: String, account: String, keychainName: String?, appPath: String) {
+    var query = baseQuery(service: service, account: account)
+    if let list = searchList(keychainName: keychainName) {
+        query[kSecMatchSearchList] = list
+    }
+    query[kSecReturnData] = true
+    query[kSecMatchLimit] = kSecMatchLimitOne
+
+    var initialResult: AnyObject?
+    let initialStatus = SecItemCopyMatching(query as CFDictionary, &initialResult)
+    if initialStatus == errSecSuccess {
+        printJson(JsonOk(result: VerifyAccessAndFixResult(
+            service: service,
+            account: account,
+            keychain: keychainName,
+            appPath: appPath,
+            initialReadSucceeded: true,
+            modified: false,
+            finalReadSucceeded: true
+        )))
+        return
+    }
+    guard initialStatus != errSecItemNotFound else {
+        fail("Initial SecItemCopyMatching did not find the item", status: initialStatus)
+    }
+
+    let modified = addToACL(service: service, account: account, keychainName: keychainName, appPath: appPath)
+    var finalResult: AnyObject?
+    let finalStatus = SecItemCopyMatching(query as CFDictionary, &finalResult)
+    guard finalStatus == errSecSuccess else {
+        fail("Post-fix SecItemCopyMatching failed", status: finalStatus)
+    }
+
+    printJson(JsonOk(result: VerifyAccessAndFixResult(
+        service: service,
+        account: account,
+        keychain: keychainName,
+        appPath: appPath,
+        initialReadSucceeded: false,
+        modified: modified,
+        finalReadSucceeded: true
+    )))
+}
+
 func usage() -> Never {
     print("""
     keychain-probe: minimal macOS Keychain probe inspired by Varlock's Swift daemon code
@@ -318,6 +480,9 @@ func usage() -> Never {
       metadata --service S --account A
       acl-list --service S --account A
       acl-contains --service S --account A --path PATH
+      add-to-acl --service S [--account A] [--keychain K] [--path APP]
+      fix-access --service S [--account A] [--keychain K] [--path APP]
+      verify-access-and-fix-acl --service S --account A [--keychain K] [--path APP]
       daemon-stdio
       whoami
 
@@ -337,6 +502,7 @@ func args(from request: StdioRequest) throws -> [String] {
     var args = [command]
     if let service = request.service { args += ["--service", service] }
     if let account = request.account { args += ["--account", account] }
+    if let keychain = request.keychain { args += ["--keychain", keychain] }
     if let value = request.value { args += ["--value", value] }
     if let label = request.label { args += ["--label", label] }
     if let path = request.path { args += ["--path", path] }
@@ -386,6 +552,20 @@ func run(_ args: [String]) {
             service: requireArg("--service", in: args),
             account: requireArg("--account", in: args),
             path: requireArg("--path", in: args)
+        )
+    case "add-to-acl", "fix-access", "keychain-fix-access":
+        fixAccess(
+            service: requireArg("--service", in: args),
+            account: arg("--account", in: args),
+            keychainName: arg("--keychain", in: args),
+            appPath: arg("--path", in: args) ?? executablePath()
+        )
+    case "verify-access-and-fix-acl":
+        verifyAccessAndFixACL(
+            service: requireArg("--service", in: args),
+            account: requireArg("--account", in: args),
+            keychainName: arg("--keychain", in: args),
+            appPath: arg("--path", in: args) ?? executablePath()
         )
     case "whoami":
         printJson(JsonOk(result: StatusResult(

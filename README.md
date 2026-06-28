@@ -24,6 +24,9 @@ bun run keychain-probe:run -- read --service dev.varlock.probe --account alice
 bun run keychain-probe:run -- metadata --service dev.varlock.probe --account alice
 bun run keychain-probe:run -- acl-list --service dev.varlock.probe --account alice
 bun run keychain-probe:run -- acl-contains --service dev.varlock.probe --account alice --path /path/to/binary
+bun run keychain-probe:run -- add-to-acl --service dev.varlock.probe --account alice --path /path/to/binary
+bun run keychain-probe:run -- fix-access --service dev.varlock.probe --account alice
+bun run keychain-probe:run -- verify-access-and-fix-acl --service dev.varlock.probe --account alice
 bun run keychain-probe:run -- upsert --service dev.varlock.probe --account alice --value changed
 bun run keychain-probe:run -- delete --service dev.varlock.probe --account alice
 ```
@@ -37,6 +40,8 @@ bun run keychain-probe:run -- daemon-stdio
 # {"command":"read","service":"dev.varlock.probe","account":"alice"}
 # {"command":"acl-list","service":"dev.varlock.probe","account":"alice"}
 # {"command":"acl-contains","service":"dev.varlock.probe","account":"alice","path":"/path/to/binary"}
+# {"command":"fix-access","service":"dev.varlock.probe","account":"alice"}
+# {"command":"verify-access-and-fix-acl","service":"dev.varlock.probe","account":"alice"}
 # {"action":"exit"}
 ```
 
