@@ -82,3 +82,4 @@ Important findings so far:
 - Proof 05a: Always Allow persists by mutating the item ACL list; `keychain-probe` is added as a trusted application, and the second read is silent.
 - Proof 06 and 06a: `/usr/bin/security add-generic-password -T keychain-probe` adds `keychain-probe` to the ACL, but does not make `keychain-probe` fully prompt-free. Read-only proof 06a still prompted with key-access wording, while the reads succeeded.
 - Proof 06b: choosing Always Allow after `security -T keychain-probe` made later reads and ACL reads silent; trusted app paths looked unchanged, but partition/hex ACL data gained a `cdhash:...` entry.
+- Proof 09: `security set-generic-password-partition-list` is not a good automation tool for this project because it prompts for the keychain password on command-line stdin; omitting `-k` fails in non-interactive proof runs, while using `-k` would expose the password insecurely.

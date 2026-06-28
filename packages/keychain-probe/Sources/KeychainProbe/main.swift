@@ -31,6 +31,7 @@ struct ACLEntryResult: Encodable {
     let trustedApplicationPaths: [String]
     let authorizations: [String]
     let authorizationsRaw: [UInt32]
+    let partitionList: [String]?
 }
 
 struct ACLListResult: Encodable {
@@ -216,14 +217,44 @@ func aclEntries(service: String, account: String) -> [ACLEntryResult] {
         let authorizationsRaw = authorizations.map { $0.uint32Value }
         let authorizationNames = authorizationsRaw.map(authorizationName)
 
+        let descriptionString = description as String?
+
         return ACLEntryResult(
-            description: description as String?,
+            description: descriptionString,
             promptSelector: UInt32(promptSelector.rawValue),
             trustedApplicationPaths: paths,
             authorizations: authorizationNames,
-            authorizationsRaw: authorizationsRaw
+            authorizationsRaw: authorizationsRaw,
+            partitionList: partitionList(fromHexPlistDescription: descriptionString)
         )
     }
+}
+
+func partitionList(fromHexPlistDescription description: String?) -> [String]? {
+    guard let description, description.count.isMultiple(of: 2) else { return nil }
+    var bytes: [UInt8] = []
+    bytes.reserveCapacity(description.count / 2)
+
+    var index = description.startIndex
+    while index < description.endIndex {
+        let next = description.index(index, offsetBy: 2)
+        guard let byte = UInt8(description[index..<next], radix: 16) else { return nil }
+        bytes.append(byte)
+        index = next
+    }
+
+    let data = Data(bytes)
+    guard let text = String(data: data, encoding: .utf8), text.contains("<plist") else { return nil }
+
+    guard
+        let plist = try? PropertyListSerialization.propertyList(from: data, options: [], format: nil),
+        let dictionary = plist as? [String: Any],
+        let partitions = dictionary["Partitions"] as? [String]
+    else {
+        return nil
+    }
+
+    return partitions
 }
 
 func authorizationName(_ value: UInt32) -> String {

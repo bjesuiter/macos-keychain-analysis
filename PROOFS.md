@@ -121,6 +121,24 @@ Questions:
 - Do authorization tags explain the different prompt behavior?
 - Which ACL entries are associated with trusted application paths, partitions, and key/item access prompts?
 
+### 8. partition-list decoder
+
+Enhance `keychain-probe acl-list` to decode hex-encoded partition-list plist ACL descriptions into explicit `partitionList` arrays.
+
+Questions:
+- Which partition entries exist for default `/usr/bin/security` items, `security -T keychain-probe` items, `keychain-probe` items, and Always-Allow-mutated items?
+- Does Always Allow add `cdhash:...` to the partition list?
+- Does the partition list explain silent vs prompted reads better than trusted application paths?
+
+### 9. security-cli create with trusted app and set cdhash partition
+
+Create an item with `/usr/bin/security add-generic-password -T keychain-probe`, derive `keychain-probe`'s `CDHash` from `codesign`, set the generic-password partition list to `apple-tool:,cdhash:<probe>`, then read with `keychain-probe`.
+
+Questions:
+- Can `security -T keychain-probe` plus `security set-generic-password-partition-list` recreate the final ACL state that Always Allow creates?
+- Does adding the `cdhash:` partition make `keychain-probe read` silent?
+- Does setting the partition list require its own terminal password or GUI authorization prompt?
+
 ## Proof ideas
 
 ### Update existing item
@@ -263,6 +281,8 @@ macos-keychain-analysis/
     06a-security-cli-create-trust-probe-read-only/
     06b-security-cli-create-trust-probe-always-allow/
     07-acl-authorization-decoder/
+    08-partition-list-decoder/
+    09-security-cli-set-cdhash-partition/
     ...
   scripts/
     cleanup-all.ts

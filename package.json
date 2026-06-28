@@ -32,7 +32,11 @@
     "proof:06b": "bun run proofs/06b-security-cli-create-trust-probe-always-allow/proof.ts",
     "proof:06b:cleanup": "bun run proofs/06b-security-cli-create-trust-probe-always-allow/proof.ts --cleanup",
     "proof:07": "bun run proofs/07-acl-authorization-decoder/proof.ts",
-    "proof:07:cleanup": "bun run proofs/07-acl-authorization-decoder/proof.ts --cleanup"
+    "proof:07:cleanup": "bun run proofs/07-acl-authorization-decoder/proof.ts --cleanup",
+    "proof:08": "bun run proofs/08-partition-list-decoder/proof.ts",
+    "proof:08:cleanup": "bun run proofs/08-partition-list-decoder/proof.ts --cleanup",
+    "proof:09": "bun run proofs/09-security-cli-set-cdhash-partition/proof.ts",
+    "proof:09:cleanup": "bun run proofs/09-security-cli-set-cdhash-partition/proof.ts --cleanup"
   },
   "devDependencies": {
     "@types/bun": "latest"

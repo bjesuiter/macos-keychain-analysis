@@ -686,3 +686,81 @@ Observed ACL details:
 Important finding:
 - `SecACLCopyAuthorizations` did not expose useful authorization tags for these generated generic-password ACL entries on this macOS version; all entries returned empty authorization arrays.
 - Prompt differences are therefore not explained by authorization tags from this API. The partition-list plist and trusted application paths remain more informative.
+
+## Proof 08: partition-list decoder
+
+Tooling change:
+- `keychain-probe acl-list` now decodes hex-encoded partition-list plist ACL descriptions into `partitionList` arrays.
+
+Cases:
+- `security-default`
+- `security-trust-probe`
+- `probe-default`
+- `security-trust-probe-after-always-allow`
+
+Observed prompt behavior:
+- `security-default`: no prompt during ACL list.
+- `security-trust-probe`: no prompt during ACL list.
+- `probe-default`: no prompt during ACL list.
+- `security-trust-probe-after-always-allow`: one prompt during the intentional `keychain-probe read`; user chose `Immer erlauben` / Always Allow.
+- ACL list after Always Allow: no prompt.
+
+Prompt screenshot:
+- `observations/screenshots/proof-08-always-allow-prompt.png`
+
+Decoded partition-list results:
+- `security-default`: `partitionList` was `["apple-tool:"]`.
+- `security-trust-probe`: `partitionList` was `["apple-tool:"]` even though trusted application paths included `keychain-probe`.
+- `probe-default`: `partitionList` was `["cdhash:5f068048a6257365454de94e07b7f8410d7b6a9e"]`.
+- `security-trust-probe-after-always-allow` before Always Allow: `partitionList` was `["apple-tool:"]`.
+- `security-trust-probe-after-always-allow` after Always Allow: `partitionList` was `["apple-tool:", "cdhash:5f068048a6257365454de94e07b7f8410d7b6a9e"]`.
+
+Important finding:
+- The decoded partition list explains the explicit-trust behavior better than trusted application paths alone.
+- `security -T keychain-probe` adds `keychain-probe` to trusted application paths but leaves partition list at `apple-tool:`.
+- `keychain-probe`-created items use a `cdhash:` partition entry.
+- Always Allow adds the `keychain-probe` `cdhash:` partition entry to a `security -T keychain-probe` item, after which access can become silent.
+
+## Proof 09: security-cli set cdhash partition
+
+Goal:
+- Derive the built `keychain-probe` CDHash via `codesign`.
+- Create a generic password with `/usr/bin/security`.
+- Attempt to set partition list to `apple-tool:,cdhash:<keychain-probe-cdhash>` with `security set-generic-password-partition-list`.
+- Read with `keychain-probe`.
+
+Derived CDHash:
+- `5f068048a6257365454de94e07b7f8410d7b6a9e`
+
+Attempted partition list:
+- `apple-tool:,cdhash:5f068048a6257365454de94e07b7f8410d7b6a9e`
+
+Observed command result:
+- After manually unlocking the login keychain, item creation succeeded.
+- Before partition update, ACL partition list was `["apple-tool:"]`.
+- `security set-generic-password-partition-list ... -S apple-tool:,cdhash:...` failed with exit code 1.
+- Error: `SecKeychainItemSetAccessWithPassword: The user name or passphrase you entered is not correct.`
+- After failed partition update, ACL partition list remained `["apple-tool:"]`.
+- First `keychain-probe read` succeeded after user authorization.
+- Second `keychain-probe read` succeeded after user authorization.
+- Final ACL partition list still remained `["apple-tool:"]`.
+
+Observed prompt behavior:
+- `set-generic-password-partition-list` did not complete successfully in the non-interactive proof process because it asks for a deprecated keychain password on stdin.
+- First `keychain-probe read`: two GUI prompts.
+- Second `keychain-probe read`: two GUI prompts again.
+- User action: entered the login keychain password and clicked/pressed one-time `Erlauben` for all four prompts; did not choose `Immer erlauben`.
+
+Prompt screenshots:
+- `observations/screenshots/proof-09-read1-prompt-1.png`
+- `observations/screenshots/proof-09-read1-prompt-2.png`
+- `observations/screenshots/proof-09-read2-prompt-1.png`
+- `observations/screenshots/proof-09-read2-prompt-2.png`
+
+Important finding:
+- The proof did not yet prove whether programmatically setting `cdhash:` works, because `security set-generic-password-partition-list` failed before mutating the item.
+- The failed mutation left the item equivalent to a normal `/usr/bin/security`-created item with `partitionList: ["apple-tool:"]`.
+- As expected for that state, cross-binary `keychain-probe read` prompted on each read when only one-time approval was used.
+
+Open question:
+- Can `security set-generic-password-partition-list` succeed if run in a truly interactive terminal or with the correct `-k` keychain password input? If yes, does adding `cdhash:<keychain-probe>` make `keychain-probe read` silent?
