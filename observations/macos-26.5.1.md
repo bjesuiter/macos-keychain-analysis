@@ -1025,3 +1025,70 @@ Observed command result:
 Important finding:
 - Reading two `/usr/bin/security`-created secrets from the cross-process `keychain-probe` produced four prompts total.
 - This confirms the earlier single-secret behavior scales linearly: one secret read can produce two GUI prompts, so two distinct secret reads can produce four GUI prompts.
+
+## Proof 15: cross-process read of two secrets after unlock preflight
+
+Creator: `/usr/bin/security`
+Reader: `packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe`
+
+Goal:
+- Test whether the explicit `unlockForAccessFix` / keychain unlock preflight used by current Varlock `fix-access` reduces later cross-process read prompts.
+
+Command sequence:
+
+```fish
+bun run proof:15
+```
+
+Expanded relevant sequence:
+
+```fish
+/usr/bin/security add-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-15.cross-process-two-secrets-after-unlock.one -w disposable-proof-secret-one -l 'macos-keychain-analysis proof 15 cross-process two secrets after unlock one'
+/usr/bin/security add-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-15.cross-process-two-secrets-after-unlock.two -w disposable-proof-secret-two -l 'macos-keychain-analysis proof 15 cross-process two secrets after unlock two'
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe unlock-for-access-fix
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe read --service macos-keychain-analysis.proof-15.cross-process-two-secrets-after-unlock.one --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe read --service macos-keychain-analysis.proof-15.cross-process-two-secrets-after-unlock.two --account macos-keychain-analysis
+```
+
+Observed unlock preflight result:
+
+```json
+{"ok":true,"result":{"changed":false,"unlocked":true}}
+```
+
+Observed prompt behavior:
+- Prompt shown during cleanup: no; commands exited 44 because items were missing.
+- Prompt shown during `/usr/bin/security` create: no.
+- Prompt shown during `unlock-for-access-fix`: no.
+- Prompt shown during first `keychain-probe read`: yes, two GUI prompts.
+- Prompt shown during second `keychain-probe read`: yes, two GUI prompts.
+- Total prompts after unlock preflight: 4.
+- App name shown in prompts: `keychain-probe`.
+- Keychain named in prompts: `Anmeldung`.
+
+Prompt screenshots:
+- `observations/screenshots/proof-15-first-read-prompt-1.png`
+- `observations/screenshots/proof-15-first-read-prompt-2.png`
+- `observations/screenshots/proof-15-second-read-prompt-1.png`
+- `observations/screenshots/proof-15-second-read-prompt-2.png`
+
+Prompt text observed:
+- First read, prompt 1: `keychain-probe möchte deine vertraulichen Informationen verwenden, die in „macos-keychain-analysis proof 15 cross-process two secrets after unlock one“ in deinem Schlüsselbund gesichert sind.`
+- First read, prompt 2: `keychain-probe möchte auf den Schlüssel „macos-keychain-analysis proof 15 cross-process two secrets after unlock one“ in deinem Schlüsselbund zugreifen.`
+- Second read, prompt 1: `keychain-probe möchte deine vertraulichen Informationen verwenden, die in „macos-keychain-analysis proof 15 cross-process two secrets after unlock two“ in deinem Schlüsselbund gesichert sind.`
+- Second read, prompt 2: `keychain-probe möchte auf den Schlüssel „macos-keychain-analysis proof 15 cross-process two secrets after unlock two“ in deinem Schlüsselbund zugreifen.`
+
+Observed command result:
+- Build exit code: 0.
+- Cleanup exit code: 44 when stale items were missing.
+- Create exit codes: 0.
+- `unlock-for-access-fix` exit code: 0.
+- First `keychain-probe read` exit code: 0.
+- First read matched expected disposable secret: yes.
+- Second `keychain-probe read` exit code: 0.
+- Second read matched expected disposable secret: yes.
+
+Important finding:
+- The preflight unlock does not reduce the cross-process prompt count in this scenario.
+- Even with the keychain already unlocked (`changed=false`, `unlocked=true`), reading two `/usr/bin/security`-created secrets from `keychain-probe` still produced four prompts total.
+- This suggests the prompt storm is per-item/per-ACL authorization, not merely keychain-lock state.
