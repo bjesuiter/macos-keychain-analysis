@@ -31,6 +31,8 @@
     "proof:06a:cleanup": "bun run proofs/06a-security-cli-create-trust-probe-read-only/proof.ts --cleanup",
     "proof:06b": "bun run proofs/06b-security-cli-create-trust-probe-always-allow/proof.ts",
     "proof:06b:cleanup": "bun run proofs/06b-security-cli-create-trust-probe-always-allow/proof.ts --cleanup",
+    "proof:06c": "PROOF06C_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/06c-security-cli-create-trust-signed-probe-read-only/proof.ts",
+    "proof:06c:cleanup": "PROOF06C_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/06c-security-cli-create-trust-signed-probe-read-only/proof.ts --cleanup",
     "proof:07": "bun run proofs/07-acl-authorization-decoder/proof.ts",
     "proof:07:cleanup": "bun run proofs/07-acl-authorization-decoder/proof.ts --cleanup",
     "proof:08": "bun run proofs/08-partition-list-decoder/proof.ts",

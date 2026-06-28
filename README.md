@@ -56,6 +56,7 @@ bun run proof:03
 bun run proof:04
 bun run proof:04a
 bun run proof:04b
+bun run proof:06c
 bun run proof:14
 bun run proof:15
 ```
@@ -69,6 +70,7 @@ bun run proof:03:cleanup
 bun run proof:04:cleanup
 bun run proof:04a:cleanup
 bun run proof:04b:cleanup
+bun run proof:06c:cleanup
 bun run proof:14:cleanup
 bun run proof:15:cleanup
 ```

@@ -1092,3 +1092,61 @@ Important finding:
 - The preflight unlock does not reduce the cross-process prompt count in this scenario.
 - Even with the keychain already unlocked (`changed=false`, `unlocked=true`), reading two `/usr/bin/security`-created secrets from `keychain-probe` still produced four prompts total.
 - This suggests the prompt storm is per-item/per-ACL authorization, not merely keychain-lock state.
+
+## Proof 06c: security CLI `-T` with correctly signed keychain-probe
+
+Creator: `/usr/bin/security`
+Trusted reader passed via `-T`: Developer ID signed `packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe`
+
+Goal:
+- Re-test Proof 06a with the stable Developer ID signed helper identity used in Proofs 12/13.
+- Earlier `-T` proofs used whatever debug/ad-hoc identity the helper had at the time; this proof signs `keychain-probe` before passing it to `/usr/bin/security add-generic-password -T`.
+
+Command sequence:
+
+```fish
+bun run proof:06c
+```
+
+Observed signing identity:
+- `Developer ID Application: Benjamin Jesuiter (BB38WRH6VJ)`
+- Team ID: `BB38WRH6VJ`
+- Codesign identifier: `dev.bjesuiter.macos-keychain-analysis.keychain-probe`
+- CDHash: `14e240ab9b89b4518109e602bceaff1996a436a0`
+
+Observed prompt behavior:
+- Prompt shown during signing/build: no.
+- Prompt shown during `/usr/bin/security add-generic-password ... -T signed-keychain-probe`: no.
+- Prompt shown during first signed `keychain-probe read`: yes, one GUI prompt.
+- Prompt shown during second signed `keychain-probe read`: yes, one GUI prompt.
+- Total read prompts: 2.
+- App name shown in prompts: `keychain-probe`.
+- Keychain named in prompts: `Anmeldung`.
+- Prompt wording for both screenshots was the key-access wording, not the confidential-information wording.
+
+Prompt screenshots:
+- `observations/screenshots/proof-06c-first-read-prompt.png`
+- `observations/screenshots/proof-06c-second-read-prompt.png`
+
+Prompt text observed:
+- `keychain-probe möchte auf den Schlüssel „macos-keychain-analysis proof 06c security create trust signed probe read only“ in deinem Schlüsselbund zugreifen.`
+
+Observed command result:
+- Build exit code: 0.
+- Codesign exit code: 0.
+- Cleanup exit code: 44 when stale item was missing.
+- `/usr/bin/security add-generic-password ... -T signed-keychain-probe` exit code: 0.
+- First signed `keychain-probe read` exit code: 0; value matched expected disposable secret.
+- Second signed `keychain-probe read` exit code: 0; value matched expected disposable secret.
+- ACL list after reads exit code: 0.
+
+Observed ACL details:
+- Trusted application paths included the signed `keychain-probe` path.
+- Partition list included only:
+  - `apple-tool:`
+- No `teamid:BB38WRH6VJ` partition was present from `security ... -T` alone.
+
+Important finding:
+- Even with correctly signed `keychain-probe`, `/usr/bin/security add-generic-password -T signed-keychain-probe` is not enough to make reads prompt-free.
+- It reduced/changed the prompt shape compared with some earlier cross-process reads: each read showed one key-access prompt, not two prompts.
+- Because no `teamid:` partition was present, `-T` appears to add only path-based trusted application data, not the durable Team ID partition grant observed after Always Allow on the signed helper.
