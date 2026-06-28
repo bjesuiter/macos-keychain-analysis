@@ -12,7 +12,9 @@
     "proof:02": "bun run proofs/02-keychain-probe-create-read-own/proof.ts",
     "proof:02:cleanup": "bun run proofs/02-keychain-probe-create-read-own/proof.ts --cleanup",
     "keychain-probe:build": "swift build --package-path packages/keychain-probe",
-    "keychain-probe:run": "swift run --package-path packages/keychain-probe keychain-probe"
+    "keychain-probe:run": "swift run --package-path packages/keychain-probe keychain-probe",
+    "proof:03": "bun run proofs/03-read-probe-item-with-security-cli/proof.ts",
+    "proof:03:cleanup": "bun run proofs/03-read-probe-item-with-security-cli/proof.ts --cleanup"
   },
   "devDependencies": {
     "@types/bun": "latest"

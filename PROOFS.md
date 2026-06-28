@@ -34,14 +34,14 @@ Questions:
 - Which binary identity is reported by `keychain-probe whoami`?
 - What ACL list does Security.framework report for the created item?
 
-### 3. Read an item created by another binary
+### 3. keychain-probe create, security-cli read
 
-Prove whether binary identity matters for read access.
+Prove whether `/usr/bin/security` can read a generic password created by the Swift `keychain-probe` binary.
 
 Questions:
-- If script A creates the item, can script B read it silently?
-- If a compiled binary creates the item, can `/usr/bin/security` read it silently?
-- Does code signing status change the result?
+- If `keychain-probe` creates the item, can `/usr/bin/security find-generic-password -w` read it silently?
+- Does the read show a Keychain prompt for `/usr/bin/security`?
+- Does the ACL list change after the `security` CLI read attempt?
 
 ### 4. Update existing item
 
@@ -173,7 +173,7 @@ macos-keychain-analysis/
   proofs/
     01-security-cli-create-read-own/
     02-keychain-probe-create-read-own/
-    03-read-other-binary/
+    03-read-probe-item-with-security-cli/
     04-update-existing/
     ...
   scripts/

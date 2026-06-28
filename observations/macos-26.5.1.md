@@ -138,3 +138,75 @@ Observed ACL details:
 Notes:
 - A Swift Security.framework CLI can create a generic password and read it back silently from the same binary identity.
 - The item ACL records the creating `keychain-probe` binary path as trusted.
+
+## Proof 03: keychain-probe create, security-cli read
+
+Creator: `packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe`
+Reader: `/usr/bin/security`
+
+Command aliases used below:
+
+```fish
+set PROBE packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe
+set SEC /usr/bin/security
+set ACCOUNT macos-keychain-analysis
+set SECRET disposable-proof-secret
+set SERVICE macos-keychain-analysis.proof-03.probe-create-security-read
+set LABEL 'macos-keychain-analysis proof 03 probe create security read'
+```
+
+Command sequence:
+
+```fish
+/usr/bin/swift build --package-path packages/keychain-probe
+$PROBE delete --service $SERVICE --account $ACCOUNT
+$PROBE whoami
+$PROBE add --service $SERVICE --account $ACCOUNT --value $SECRET --label $LABEL
+$PROBE acl-list --service $SERVICE --account $ACCOUNT
+$SEC find-generic-password -a $ACCOUNT -s $SERVICE -w
+$SEC find-generic-password -a $ACCOUNT -s $SERVICE
+$PROBE acl-list --service $SERVICE --account $ACCOUNT
+```
+
+Expected prompt behavior:
+- `keychain-probe` creation should normally be silent.
+- `/usr/bin/security` read may prompt because `/usr/bin/security` is not the creating trusted application.
+
+Observed prompt behavior:
+- Prompt shown during cleanup: no
+- Prompt shown during create: no
+- Prompt shown during ACL list before security read: no
+- Prompt shown during `/usr/bin/security find-generic-password -w`: yes, two GUI prompts
+- User action: entered the login keychain password and pressed Enter on the keyboard
+- App name shown in prompt: `security`
+- Keychain named in prompt: `Anmeldung`
+- Item named in prompt: `macos-keychain-analysis proof 03 probe create security read`
+
+Prompt screenshots:
+- `observations/screenshots/proof-03-security-cli-prompt-1.png`
+- `observations/screenshots/proof-03-security-cli-prompt-2.png`
+
+Prompt text observed:
+- Prompt 1: `security möchte deine vertraulichen Informationen verwenden, die in „macos-keychain-analysis proof 03 probe create security read“ in deinem Schlüsselbund gesichert sind.`
+- Prompt 2: `security möchte auf den Schlüssel „macos-keychain-analysis proof 03 probe create security read“ in deinem Schlüsselbund zugreifen.`
+
+Observed command result:
+- Build exit code: 0
+- Cleanup exit code: 0
+- Create exit code: 0
+- Security CLI read exit code: 0
+- Security CLI read matched expected disposable secret: yes
+- Security CLI attribute read exit code: 0
+- ACL list after read exit code: 0
+
+Observed ACL details:
+- Before `/usr/bin/security` read, ACL list included the built `keychain-probe` executable path as a trusted application.
+- After `/usr/bin/security` read, ACL list still included `keychain-probe`; no obvious `/usr/bin/security` trusted-application path appeared in the captured JSON output.
+
+Notes:
+- Unlike proof 2, crossing from the creator binary (`keychain-probe`) to `/usr/bin/security` triggered GUI authorization prompts.
+- The prompt still allowed `/usr/bin/security` to read the secret after user authorization.
+- User confirmed this was one-time authorization, not persistent trust.
+
+Open questions:
+- Why did this flow show two GUI prompts for one `/usr/bin/security find-generic-password -w` read? The screenshots show slightly different wording (`vertraulichen Informationen verwenden` vs `auf den Schlüssel ... zugreifen`), but we have not yet proven whether these correspond to separate Security.framework operations, separate ACL entries, or another macOS Keychain implementation detail.
