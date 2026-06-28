@@ -50,7 +50,9 @@
     "proof:14": "bun run proofs/14-cross-process-read-two-secrets/proof.ts",
     "proof:14:cleanup": "bun run proofs/14-cross-process-read-two-secrets/proof.ts --cleanup",
     "proof:15": "bun run proofs/15-cross-process-read-two-secrets-after-unlock/proof.ts",
-    "proof:15:cleanup": "bun run proofs/15-cross-process-read-two-secrets-after-unlock/proof.ts --cleanup"
+    "proof:15:cleanup": "bun run proofs/15-cross-process-read-two-secrets-after-unlock/proof.ts --cleanup",
+    "proof:16": "bun run proofs/16-original-fix-access-flow/proof.ts",
+    "proof:16:cleanup": "bun run proofs/16-original-fix-access-flow/proof.ts --cleanup"
   },
   "devDependencies": {
     "@types/bun": "latest"

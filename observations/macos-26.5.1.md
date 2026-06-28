@@ -1150,3 +1150,60 @@ Important finding:
 - Even with correctly signed `keychain-probe`, `/usr/bin/security add-generic-password -T signed-keychain-probe` is not enough to make reads prompt-free.
 - It reduced/changed the prompt shape compared with some earlier cross-process reads: each read showed one key-access prompt, not two prompts.
 - Because no `teamid:` partition was present, `-T` appears to add only path-based trusted application data, not the durable Team ID partition grant observed after Always Allow on the signed helper.
+
+## Proof 16: original fix-access flow
+
+Creator: `/usr/bin/security`
+Repairer/reader: `packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe`
+
+Goal:
+- Reproduce the original Varlock `fix-access` flow as closely as possible.
+- Create an item with `/usr/bin/security`.
+- Run the legacy ACL repair primitive: add the running helper executable to explicit legacy ACL app lists.
+- Do not run unlock preflight, take ownership, or edit partition lists.
+- Read the secret twice after repair.
+
+Command sequence:
+
+```fish
+bun run proof:16
+```
+
+Observed prompt behavior:
+- Prompt shown during `/usr/bin/security` create: no.
+- Prompt shown during ACL list before repair: no.
+- Prompt shown during `keychain-probe add-to-acl`: yes, two GUI prompts.
+- Prompt shown during ACL list after repair: no.
+- Prompt shown during first `keychain-probe read` after repair: yes, one GUI prompt.
+- Prompt shown during second `keychain-probe read` after repair: yes, one GUI prompt.
+- Prompt shown during final ACL list: no.
+- Total prompts: 4.
+- App name shown in prompts: `keychain-probe`.
+- Keychain named in prompts: `Anmeldung`.
+
+Prompt screenshots:
+- `observations/screenshots/proof-16-add-to-acl-prompt-1.png`
+- `observations/screenshots/proof-16-add-to-acl-prompt-2.png`
+- `observations/screenshots/proof-16-first-read-prompt.png`
+- `observations/screenshots/proof-16-second-read-prompt.png`
+
+Prompt text observed:
+- ACL repair prompt 1: `keychain-probe möchte die Zugriffsrechte des Objekts „macos-keychain-analysis proof 16 original fix access flow“ in deinem Schlüsselbund ändern.`
+- ACL repair prompt 2: `keychain-probe möchte den:die Eigentümer:in des Objekts „macos-keychain-analysis proof 16 original fix access flow“ in deinem Schlüsselbund ändern. (Eigentümer:in ist jene Person, die die Zugriffsrechte ändern darf.)`
+- Read prompt: `keychain-probe möchte auf den Schlüssel „macos-keychain-analysis proof 16 original fix access flow“ in deinem Schlüsselbund zugreifen.`
+
+Observed command result:
+- `add-to-acl` returned `modified: true`.
+- First read exit code: 0; value matched expected disposable secret.
+- Second read exit code: 0; value matched expected disposable secret.
+
+Observed ACL details:
+- Before repair, trusted application paths included `/usr/bin/security` and partition list included only `apple-tool:`.
+- After repair, trusted application paths included the `keychain-probe` executable path.
+- After repair and after reads, partition list still included only `apple-tool:`.
+- No `teamid:` or `cdhash:` partition grant appeared.
+
+Important finding:
+- The original fix-access flow successfully mutates the legacy trusted application path ACL, but it does not create the partition-list grant needed for prompt-free reads.
+- It also has its own prompt cost: two prompts to change access rights/owner, then one prompt per later read in this run.
+- This reinforces the current conclusion that the partition list, not just legacy trusted app paths, controls no-prompt reads on modern macOS.

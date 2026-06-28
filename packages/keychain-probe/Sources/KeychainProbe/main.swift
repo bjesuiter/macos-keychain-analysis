@@ -119,11 +119,27 @@ func baseQuery(service: String, account: String) -> [CFString: Any] {
     ]
 }
 
+func resolveKeychainPath(named name: String) -> String? {
+    let path: String
+    switch name.lowercased() {
+    case "login":
+        path = "\(FileManager.default.homeDirectoryForCurrentUser.path)/Library/Keychains/login.keychain-db"
+    case "system":
+        path = "/Library/Keychains/System.keychain"
+    default:
+        path = name
+    }
+    return FileManager.default.fileExists(atPath: path) ? path : nil
+}
+
 func searchList(keychainName: String?) -> [SecKeychain]? {
     guard let keychainName, !keychainName.isEmpty else { return nil }
+    guard let keychainPath = resolveKeychainPath(named: keychainName) else {
+        fail("Keychain not found: \(keychainName)")
+    }
 
     var keychain: SecKeychain?
-    let status = SecKeychainOpen(keychainName, &keychain)
+    let status = SecKeychainOpen(keychainPath, &keychain)
     guard status == errSecSuccess, let keychain else {
         fail("SecKeychainOpen failed", status: status)
     }
@@ -243,25 +259,54 @@ func itemRef(service: String, account: String) -> SecKeychainItem {
 }
 
 func itemRef(service: String, account: String?, keychainName: String?) -> SecKeychainItem {
-    var query: [CFString: Any] = [
-        kSecClass: kSecClassGenericPassword,
-        kSecAttrService: service,
-        kSecReturnRef: true,
-        kSecMatchLimit: kSecMatchLimitOne,
-    ]
-    if let account, !account.isEmpty {
-        query[kSecAttrAccount] = account
-    }
-    if let list = searchList(keychainName: keychainName) {
-        query[kSecMatchSearchList] = list
+    let scopedSearchList = searchList(keychainName: keychainName)
+
+    // Match Varlock's getItemRef as closely as possible: search generic passwords first,
+    // then internet passwords, using service/server respectively and rejecting ambiguous
+    // service-only matches before taking the first result.
+    for itemClass in [kSecClassGenericPassword, kSecClassInternetPassword] {
+        let serviceAttribute = itemClass == kSecClassGenericPassword ? kSecAttrService : kSecAttrServer
+
+        if account == nil {
+            var countQuery: [CFString: Any] = [
+                kSecClass: itemClass,
+                kSecReturnAttributes: true,
+                kSecMatchLimit: kSecMatchLimitAll,
+                serviceAttribute: service,
+            ]
+            if let scopedSearchList {
+                countQuery[kSecMatchSearchList] = scopedSearchList
+            }
+
+            var countResult: AnyObject?
+            let countStatus = SecItemCopyMatching(countQuery as CFDictionary, &countResult)
+            if countStatus == errSecSuccess, let items = countResult as? [[String: Any]], items.count > 1 {
+                let accounts = items.compactMap { $0[kSecAttrAccount as String] as? String }
+                fail("Multiple keychain items found for service \"\(service)\" with accounts: \(accounts.joined(separator: ", "))")
+            }
+        }
+
+        var query: [CFString: Any] = [
+            kSecClass: itemClass,
+            kSecReturnRef: true,
+            kSecMatchLimit: kSecMatchLimitOne,
+            serviceAttribute: service,
+        ]
+        if let account {
+            query[kSecAttrAccount] = account
+        }
+        if let scopedSearchList {
+            query[kSecMatchSearchList] = scopedSearchList
+        }
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        if status == errSecSuccess, let result {
+            return result as! SecKeychainItem
+        }
     }
 
-    var result: AnyObject?
-    let status = SecItemCopyMatching(query as CFDictionary, &result)
-    guard status == errSecSuccess, let result else {
-        fail("SecItemCopyMatching item ref failed", status: status)
-    }
-    return result as! SecKeychainItem
+    fail("SecItemCopyMatching item ref failed", status: errSecItemNotFound)
 }
 
 func aclEntries(service: String, account: String) -> [ACLEntryResult] {
@@ -415,13 +460,10 @@ func addToACL(service: String, account: String?, keychainName: String?, appPath:
         var description: CFString?
         var promptSelector = SecKeychainPromptSelector()
         let contentsStatus = SecACLCopyContents(acl, &appList, &description, &promptSelector)
-        guard contentsStatus == errSecSuccess else {
-            fail("SecACLCopyContents failed", status: contentsStatus)
-        }
+        guard contentsStatus == errSecSuccess else { continue }
+        guard let appsFromACL = appList as? [SecTrustedApplication] else { continue }
 
-        // Original Varlock behavior: nil app list means unrestricted access; leave it alone.
-        guard let appList else { continue }
-        var apps = appList as! [SecTrustedApplication]
+        var apps = appsFromACL
         let alreadyAllowed = apps.contains { app in
             var appData: CFData?
             let appStatus = SecTrustedApplicationCopyData(app, &appData)
@@ -432,10 +474,9 @@ func addToACL(service: String, account: String?, keychainName: String?, appPath:
 
         apps.append(trustedApp)
         let setStatus = SecACLSetContents(acl, apps as CFArray, description ?? "" as CFString, promptSelector)
-        guard setStatus == errSecSuccess else {
-            fail("SecACLSetContents failed", status: setStatus)
+        if setStatus == errSecSuccess {
+            modified = true
         }
-        modified = true
     }
 
     if modified {
