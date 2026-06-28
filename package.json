@@ -42,7 +42,9 @@
     "proof:11": "bun run proofs/11-probe-created-item-after-rebuild/proof.ts",
     "proof:11:cleanup": "bun run proofs/11-probe-created-item-after-rebuild/proof.ts --cleanup",
     "proof:12": "PROOF12_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/12-signed-probe-after-rebuild/proof.ts",
-    "proof:12:cleanup": "PROOF12_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/12-signed-probe-after-rebuild/proof.ts --cleanup"
+    "proof:12:cleanup": "PROOF12_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/12-signed-probe-after-rebuild/proof.ts --cleanup",
+    "proof:13": "PROOF13_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/13-security-created-always-allow-signed-probe-rebuild/proof.ts",
+    "proof:13:cleanup": "PROOF13_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/13-security-created-always-allow-signed-probe-rebuild/proof.ts --cleanup"
   },
   "devDependencies": {
     "@types/bun": "latest"

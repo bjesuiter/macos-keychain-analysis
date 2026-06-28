@@ -166,6 +166,15 @@ Questions:
 - Can the CDHash change while the designated requirement remains stable and reads stay silent?
 - Is this the right model for Varlock helper updates?
 
+### 13. security-created item, Always Allow, signed keychain-probe after rebuild
+
+Create an item with `/usr/bin/security`, read it with stably signed `keychain-probe`, choose Always Allow, verify access, rebuild and re-sign `keychain-probe` with the same identity/identifier, then read again.
+
+Questions:
+- Does Always Allow for a signed binary persist across rebuilds?
+- Does the partition list use `teamid:` or `cdhash:` for the signed probe?
+- Can stable signing make even cross-app Always Allow grants survive helper updates?
+
 ## Proof ideas
 
 ### Update an existing ACL entry like original `addToACL`

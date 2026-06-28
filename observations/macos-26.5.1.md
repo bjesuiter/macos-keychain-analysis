@@ -890,3 +890,49 @@ Important finding:
 - Stable Developer ID signing preserved access across rebuild even though the CDHash changed.
 - This supports the intended model: use stable signing identity/designated requirement rather than ad-hoc rebuilt binaries or CDHash grants.
 - For Varlock helper updates, a stable signed helper should avoid re-prompting users merely because the helper binary was updated.
+
+## Proof 13: security-created item, Always Allow, signed keychain-probe after rebuild
+
+Goal:
+- Create a generic password with `/usr/bin/security`.
+- Build and sign `keychain-probe` with stable Developer ID identity `584EFC30BFC2F2BAC6BC900457C8BB19671D0D18` / `Developer ID Application: Benjamin Jesuiter (BB38WRH6VJ)`.
+- Read the security-created item with signed `keychain-probe` and choose Always Allow.
+- Rebuild and re-sign `keychain-probe` with the same identity and identifier.
+- Read the same item after rebuild.
+
+Observed signing identity:
+- `Developer ID Application: Benjamin Jesuiter (BB38WRH6VJ)`
+- Team ID: `BB38WRH6VJ`
+- Codesign identifier: `dev.bjesuiter.macos-keychain-analysis.keychain-probe`
+
+Observed code identity:
+- Initial CDHash: `a2f8b24f83f252a140d975cc9d37856921c61603`
+- Rebuilt CDHash: `d135d99545a8e2030370de34da17d8282cde8dcf`
+- CDHash changed: yes
+- Designated requirement changed: no
+
+Observed prompt behavior:
+- First read before rebuild showed two prompts.
+- User action: clicked `Immer erlauben` / Always Allow on both prompts.
+- Second read before rebuild succeeded.
+- Post-rebuild reads succeeded.
+- No post-rebuild prompts were reported.
+
+Prompt screenshots:
+- `observations/screenshots/proof-13-first-read-always-allow-prompt-1.png`
+- `observations/screenshots/proof-13-first-read-always-allow-prompt-2.png`
+
+Prompt text observed:
+- `keychain-probe möchte deine vertraulichen Informationen verwenden, die in „macos-keychain-analysis proof 13 security created signed always allow rebuild“ in deinem Schlüsselbund gesichert sind.`
+
+Observed ACL details after Always Allow:
+- Trusted application paths included two `keychain-probe` path entries and `/usr/bin/security`.
+- Partition list included:
+  - `apple-tool:`
+  - `teamid:BB38WRH6VJ`
+  - `cdhash:abbc62d59991fa1bb881611544c5579393d548a6`
+
+Important finding:
+- For a stably signed `keychain-probe`, Always Allow on a `/usr/bin/security`-created item survived rebuild/re-sign even though CDHash changed.
+- The ACL partition list included `teamid:BB38WRH6VJ`, which likely explains why the rebuilt signed binary could still read without another prompt.
+- This differs from Proof 10's ad-hoc signed helper, where Always Allow was invalidated by CDHash change.
