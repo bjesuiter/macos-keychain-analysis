@@ -139,7 +139,32 @@ Questions:
 - Does adding the `cdhash:` partition make `keychain-probe read` silent?
 - Does setting the partition list require its own terminal password or GUI authorization prompt?
 
+### 10. Always Allow after keychain-probe rebuild
+
+Create an item with `/usr/bin/security`, read with `keychain-probe`, choose Always Allow, verify a second read is silent, rebuild `keychain-probe` with a changed CDHash, then read again.
+
+Questions:
+- Does Always Allow remain valid after the helper binary is rebuilt?
+- Does changing `keychain-probe`'s CDHash cause a new Keychain prompt?
+- Would users be prompted again after each Swift helper binary update?
+
 ## Proof ideas
+
+### Update an existing ACL entry like original `addToACL`
+
+Prove whether a Swift helper can update an existing item's ACL the same way Varlock's original `addToACL` picker flow did: copy `SecAccess`, append a `SecTrustedApplication` for `keychain-probe`, and write the access object back with `SecKeychainItemSetAccess`.
+
+Questions:
+- Does post-hoc `SecACLSetContents` behave like creation-time `security add-generic-password -T keychain-probe`?
+- Does appending `keychain-probe` to an existing ACL make future `keychain-probe read` calls silent?
+- Does the resulting ACL shape match proof 06, proof 06a, or Always Allow?
+- Which operation prompts: copying access, setting ACL contents, writing access back, or later reading the secret?
+
+Suggested flow:
+1. Create an item with `/usr/bin/security` without trusting `keychain-probe`.
+2. Run a Swift proof command that mirrors original `addToACL`.
+3. Read with `keychain-probe` twice.
+4. Inspect ACL entries and partition lists before and after.
 
 ### Update existing item
 

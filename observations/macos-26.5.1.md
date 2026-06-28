@@ -764,3 +764,44 @@ Important finding:
 
 Open question:
 - Can `security set-generic-password-partition-list` succeed if run in a truly interactive terminal or with the correct `-k` keychain password input? If yes, does adding `cdhash:<keychain-probe>` make `keychain-probe read` silent?
+
+## Proof 10: Always Allow after keychain-probe rebuild
+
+Goal:
+- Create a generic password with `/usr/bin/security`.
+- Read with `keychain-probe` and choose Always Allow.
+- Verify a second read is silent before rebuild.
+- Rebuild `keychain-probe` with a changed source marker and changed CDHash.
+- Read the same item again.
+
+Observed CDHashes:
+- Initial `keychain-probe` CDHash: `30817d706d7ab2c9394f7835ff364ebb7ec3d956`
+- Rebuilt `keychain-probe` CDHash: `d38cbfcfc6cf8829b2cfa2a1486e2941cee1e087`
+- CDHash changed: yes
+
+Observed prompt behavior:
+- First `keychain-probe read`: prompted.
+- User action on first prompt: selected `Immer erlauben` / Always Allow.
+- Second `keychain-probe read` before rebuild: silent.
+- Post-rebuild `keychain-probe read`: prompted again.
+- User action on post-rebuild prompt: selected `Erlauben` / Allow Once.
+
+Prompt screenshots:
+- `observations/screenshots/proof-10-first-read-always-allow-prompt.png`
+- `observations/screenshots/proof-10-post-rebuild-read-prompt.png`
+
+Prompt text observed:
+- `keychain-probe möchte deine vertraulichen Informationen verwenden, die in „macos-keychain-analysis proof 10 always allow after probe rebuild“ in deinem Schlüsselbund gesichert sind.`
+
+Observed ACL details before rebuild:
+- After Always Allow, ACL output included a partition list with the initial CDHash:
+  - `apple-tool:`
+  - `cdhash:30817d706d7ab2c9394f7835ff364ebb7ec3d956`
+- The ACL output also included trusted application paths for:
+  - the built `keychain-probe` executable path
+  - `/usr/bin/security`
+
+Important finding:
+- Always Allow was invalidated by rebuilding `keychain-probe` when the CDHash changed.
+- This supports the hypothesis that the persistent Always Allow grant is tied to a code identity / CDHash, not just the filesystem path.
+- This is relevant for Varlock helper updates: users may be prompted again after helper binary updates if the persisted grant is CDHash-based.
