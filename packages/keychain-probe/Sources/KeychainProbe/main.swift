@@ -66,6 +66,13 @@ struct VerifyAccessAndFixResult: Encodable {
     let finalReadSucceeded: Bool
 }
 
+struct TakeOwnershipResult: Encodable {
+    let service: String
+    let account: String?
+    let keychain: String?
+    let modified: Bool
+}
+
 struct StdioRequest: Decodable {
     let command: String?
     let action: String?
@@ -132,7 +139,7 @@ func resolveKeychainPath(named name: String) -> String? {
     return FileManager.default.fileExists(atPath: path) ? path : nil
 }
 
-func searchList(keychainName: String?) -> [SecKeychain]? {
+func keychainRef(named keychainName: String?) -> SecKeychain? {
     guard let keychainName, !keychainName.isEmpty else { return nil }
     guard let keychainPath = resolveKeychainPath(named: keychainName) else {
         fail("Keychain not found: \(keychainName)")
@@ -143,6 +150,11 @@ func searchList(keychainName: String?) -> [SecKeychain]? {
     guard status == errSecSuccess, let keychain else {
         fail("SecKeychainOpen failed", status: status)
     }
+    return keychain
+}
+
+func searchList(keychainName: String?) -> [SecKeychain]? {
+    guard let keychain = keychainRef(named: keychainName) else { return nil }
     return [keychain]
 }
 
@@ -500,6 +512,155 @@ func fixAccess(service: String, account: String?, keychainName: String?, appPath
     )))
 }
 
+func keychainProbeError(_ message: String, status: OSStatus? = nil) -> NSError {
+    NSError(domain: "KeychainProbe", code: Int(status ?? -1), userInfo: [NSLocalizedDescriptionKey: status.map { "\(message): \(statusMessage($0) ?? String($0))" } ?? message])
+}
+
+func getGenericPasswordForOwnership(service: String, account: String?, keychainName: String?) throws -> (String, String) {
+    let scopedSearchList = searchList(keychainName: keychainName)
+
+    if account == nil {
+        var countQuery: [CFString: Any] = [
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: service,
+            kSecReturnAttributes: true,
+            kSecMatchLimit: kSecMatchLimitAll,
+        ]
+        if let scopedSearchList { countQuery[kSecMatchSearchList] = scopedSearchList }
+        var countResult: AnyObject?
+        let countStatus = SecItemCopyMatching(countQuery as CFDictionary, &countResult)
+        if countStatus == errSecSuccess, let items = countResult as? [[String: Any]], items.count > 1 {
+            let accounts = items.compactMap { $0[kSecAttrAccount as String] as? String }.joined(separator: ", ")
+            throw keychainProbeError("Multiple keychain items found for service \"\(service)\" with accounts: \(accounts)")
+        }
+    }
+
+    var query: [CFString: Any] = [
+        kSecClass: kSecClassGenericPassword,
+        kSecAttrService: service,
+        kSecReturnAttributes: true,
+        kSecReturnData: true,
+        kSecMatchLimit: kSecMatchLimitOne,
+    ]
+    if let account { query[kSecAttrAccount] = account }
+    if let scopedSearchList { query[kSecMatchSearchList] = scopedSearchList }
+
+    var result: AnyObject?
+    let status = SecItemCopyMatching(query as CFDictionary, &result)
+    switch status {
+    case errSecSuccess:
+        guard let item = result as? [String: Any] else { throw keychainProbeError("Keychain item not found", status: errSecItemNotFound) }
+        guard let data = item[kSecValueData as String] as? Data, let value = String(data: data, encoding: .utf8) else { throw keychainProbeError("Unexpected keychain data format") }
+        return ((item[kSecAttrAccount as String] as? String) ?? "", value)
+    case errSecItemNotFound:
+        throw keychainProbeError("Keychain item not found", status: status)
+    case errSecAuthFailed, errSecInteractionNotAllowed:
+        throw keychainProbeError("Authentication failed or interaction not allowed", status: status)
+    default:
+        throw keychainProbeError("SecItemCopyMatching ownership read failed", status: status)
+    }
+}
+
+func setGenericPasswordThrowing(service: String, account: String, value: String, update: Bool, keychainName: String?) throws -> Bool {
+    guard let valueData = value.data(using: .utf8) else { throw keychainProbeError("Unexpected keychain data format") }
+    let keychain = keychainRef(named: keychainName)
+    var lookup: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: account]
+    if let keychain { lookup[kSecMatchSearchList] = [keychain] }
+
+    if update {
+        let attrs: [CFString: Any] = [kSecValueData: valueData, kSecAttrLabel: account.isEmpty ? service : account]
+        let status = SecItemUpdate(lookup as CFDictionary, attrs as CFDictionary)
+        if status == errSecSuccess { return true }
+        if status != errSecItemNotFound { throw keychainProbeError("SecItemUpdate failed", status: status) }
+    }
+
+    var addQuery = lookup
+    addQuery[kSecAttrLabel] = account.isEmpty ? service : account
+    addQuery[kSecValueData] = valueData
+    if let keychain {
+        addQuery[kSecUseKeychain] = keychain
+        addQuery.removeValue(forKey: kSecMatchSearchList)
+    }
+    let status = SecItemAdd(addQuery as CFDictionary, nil)
+    if status == errSecSuccess { return false }
+    throw keychainProbeError("SecItemAdd failed", status: status)
+}
+
+func deleteGenericPasswordThrowing(service: String, account: String, keychainName: String?) throws {
+    var query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: account]
+    if let list = searchList(keychainName: keychainName) { query[kSecMatchSearchList] = list }
+    let status = SecItemDelete(query as CFDictionary)
+    guard status == errSecSuccess else { throw keychainProbeError("SecItemDelete failed", status: status) }
+}
+
+func renameGenericPassword(service: String, account: String, newService: String, newAccount: String, keychainName: String?) throws {
+    var query: [CFString: Any] = [kSecClass: kSecClassGenericPassword, kSecAttrService: service, kSecAttrAccount: account]
+    if let list = searchList(keychainName: keychainName) { query[kSecMatchSearchList] = list }
+    let attrs: [CFString: Any] = [kSecAttrService: newService, kSecAttrAccount: newAccount, kSecAttrLabel: newAccount.isEmpty ? newService : newAccount]
+    let status = SecItemUpdate(query as CFDictionary, attrs as CFDictionary)
+    guard status == errSecSuccess else { throw keychainProbeError("SecItemUpdate rename failed", status: status) }
+}
+
+func takeOwnershipValue(service: String, account: String?, keychainName: String?) throws -> Bool {
+    let (resolvedAccount, value) = try getGenericPasswordForOwnership(service: service, account: account, keychainName: keychainName)
+    let tempService = "\(service).varlock-ownership-transfer.\(UUID().uuidString)"
+    let tempAccount = "\(resolvedAccount).varlock-ownership-transfer.\(UUID().uuidString)"
+
+    do {
+        _ = try setGenericPasswordThrowing(service: tempService, account: tempAccount, value: value, update: false, keychainName: keychainName)
+        let (_, verifiedValue) = try getGenericPasswordForOwnership(service: tempService, account: tempAccount, keychainName: keychainName)
+        guard verifiedValue == value else { throw keychainProbeError("Temporary ownership-transfer value mismatch") }
+    } catch {
+        try? deleteGenericPasswordThrowing(service: tempService, account: tempAccount, keychainName: keychainName)
+        throw keychainProbeError("Ownership transfer failed while creating temporary item: \(error.localizedDescription)")
+    }
+
+    try deleteGenericPasswordThrowing(service: service, account: resolvedAccount, keychainName: keychainName)
+
+    do {
+        try renameGenericPassword(service: tempService, account: tempAccount, newService: service, newAccount: resolvedAccount, keychainName: keychainName)
+        let (_, verifiedValue) = try getGenericPasswordForOwnership(service: service, account: resolvedAccount, keychainName: keychainName)
+        guard verifiedValue == value else { throw keychainProbeError("Final ownership-transfer value mismatch") }
+    } catch {
+        do {
+            _ = try setGenericPasswordThrowing(service: service, account: resolvedAccount, value: value, update: false, keychainName: keychainName)
+            try? deleteGenericPasswordThrowing(service: tempService, account: tempAccount, keychainName: keychainName)
+        } catch let restoreError {
+            throw keychainProbeError("Ownership transfer failed while recreating item (\(error.localizedDescription)); restore also failed (\(restoreError.localizedDescription))")
+        }
+        throw keychainProbeError("Ownership transfer failed while recreating item (\(error.localizedDescription)); value restored")
+    }
+    return true
+}
+
+func takeOwnership(service: String, account: String?, keychainName: String?) {
+    do {
+        // Match current Varlock daemon behavior: unlock/access-fix preflight before takeOwnership.
+        // Keep this inline instead of calling unlockForAccessFix because that command prints JSON.
+        let keychain: SecKeychain
+        if let selected = keychainRef(named: keychainName) {
+            keychain = selected
+        } else {
+            var defaultKeychain: SecKeychain?
+            let copyStatus = SecKeychainCopyDefault(&defaultKeychain)
+            guard copyStatus == errSecSuccess, let defaultKeychain else { throw keychainProbeError("SecKeychainCopyDefault failed", status: copyStatus) }
+            keychain = defaultKeychain
+        }
+        var keychainStatus = SecKeychainStatus()
+        let statusResult = SecKeychainGetStatus(keychain, &keychainStatus)
+        guard statusResult == errSecSuccess else { throw keychainProbeError("SecKeychainGetStatus failed", status: statusResult) }
+        if (keychainStatus & SecKeychainStatus(1)) == 0 {
+            let unlockStatus = SecKeychainUnlock(keychain, 0, nil, false)
+            guard unlockStatus == errSecSuccess else { throw keychainProbeError("SecKeychainUnlock failed", status: unlockStatus) }
+        }
+
+        let modified = try takeOwnershipValue(service: service, account: account, keychainName: keychainName)
+        printJson(JsonOk(result: TakeOwnershipResult(service: service, account: account, keychain: keychainName, modified: modified)))
+    } catch {
+        fail(error.localizedDescription)
+    }
+}
+
 func verifyAccessAndFixACL(service: String, account: String, keychainName: String?, appPath: String) {
     var query = baseQuery(service: service, account: account)
     if let list = searchList(keychainName: keychainName) {
@@ -558,6 +719,7 @@ func usage() -> Never {
       acl-contains --service S --account A --path PATH
       add-to-acl --service S [--account A] [--keychain K] [--path APP]
       fix-access --service S [--account A] [--keychain K] [--path APP]
+      take-ownership --service S [--account A] [--keychain K]
       unlock-for-access-fix [--keychain K]
       verify-access-and-fix-acl --service S --account A [--keychain K] [--path APP]
       daemon-stdio
@@ -636,6 +798,12 @@ func run(_ args: [String]) {
             account: arg("--account", in: args),
             keychainName: arg("--keychain", in: args),
             appPath: arg("--path", in: args) ?? executablePath()
+        )
+    case "take-ownership", "keychain-take-ownership":
+        takeOwnership(
+            service: requireArg("--service", in: args),
+            account: arg("--account", in: args),
+            keychainName: arg("--keychain", in: args)
         )
     case "unlock-for-access-fix":
         unlockForAccessFix(keychainName: arg("--keychain", in: args))

@@ -60,6 +60,7 @@ bun run proof:06c
 bun run proof:14
 bun run proof:15
 bun run proof:16
+bun run proof:17
 ```
 
 Clean up disposable Keychain items:
@@ -75,6 +76,7 @@ bun run proof:06c:cleanup
 bun run proof:14:cleanup
 bun run proof:15:cleanup
 bun run proof:16:cleanup
+bun run proof:17:cleanup
 ```
 
 The scripts use disposable test values only. They print each command, expected prompt behavior, observed command result, and cleanup instructions.

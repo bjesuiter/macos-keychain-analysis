@@ -1207,3 +1207,71 @@ Important finding:
 - The original fix-access flow successfully mutates the legacy trusted application path ACL, but it does not create the partition-list grant needed for prompt-free reads.
 - It also has its own prompt cost: two prompts to change access rights/owner, then one prompt per later read in this run.
 - This reinforces the current conclusion that the partition list, not just legacy trusted app paths, controls no-prompt reads on modern macOS.
+
+## Proof 17: take-ownership flow attempt
+
+Creator: `/usr/bin/security`
+Ownership transfer process: `packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe`
+
+Goal:
+- Reproduce the current Varlock `take-ownership` flow:
+  1. read existing generic-password value
+  2. create and verify temporary item through `keychain-probe` normal write path
+  3. delete original
+  4. rename temporary item back to original service/account
+  5. verify final value
+
+Command sequence:
+
+```fish
+bun run proof:17
+```
+
+Observed prompt behavior:
+- Prompt shown during `/usr/bin/security` create: no.
+- Prompt shown during ACL list before take-ownership: no.
+- Prompt shown during `keychain-probe take-ownership`: yes, two GUI prompts before failure.
+- App name shown in prompts: `keychain-probe`.
+- Keychain named in prompts: `Anmeldung`.
+
+Prompt screenshots:
+- `observations/screenshots/proof-17-take-ownership-read-prompt-1.png`
+- `observations/screenshots/proof-17-take-ownership-read-prompt-2.png`
+
+Prompt text observed:
+- Prompt 1: `keychain-probe möchte deine vertraulichen Informationen verwenden, die in „macos-keychain-analysis proof 17 take ownership flow“ in deinem Schlüsselbund gesichert sind.`
+- Prompt 2: `keychain-probe möchte auf den Schlüssel „macos-keychain-analysis proof 17 take ownership flow“ in deinem Schlüsselbund zugreifen.`
+
+Observed command result:
+- Initial ownership read prompted and succeeded far enough to proceed.
+- `take-ownership` ultimately failed while deleting the original item:
+
+```json
+{"error":"SecItemDelete failed: Invalid attempt to change the owner of this item.","ok":false}
+```
+
+Observed ACL details before take-ownership:
+- Trusted application paths included `/usr/bin/security`.
+- Partition list included only:
+  - `apple-tool:`
+
+Important finding:
+- In this proof, the current Varlock-style take-ownership flow could read the original value after prompts, but could not delete the `/usr/bin/security`-created original item.
+- macOS returned `Invalid attempt to change the owner of this item.` during `SecItemDelete`.
+- So take-ownership is not yet proven as a successful prompt-removal path for this security-created item shape.
+
+### Proof 17 follow-up: repeated take-ownership attempt prompted again
+
+A later/repeated take-ownership attempt for the same Proof 17 item produced another two GUI prompts before failing.
+
+Prompt screenshots:
+- `observations/screenshots/proof-17-second-attempt-read-prompt-1.png`
+- `observations/screenshots/proof-17-second-attempt-read-prompt-2.png`
+
+Prompt text observed:
+- Prompt 1: `keychain-probe möchte deine vertraulichen Informationen verwenden, die in „macos-keychain-analysis proof 17 take ownership flow“ in deinem Schlüsselbund gesichert sind.`
+- Prompt 2: `keychain-probe möchte auf den Schlüssel „macos-keychain-analysis proof 17 take ownership flow“ in deinem Schlüsselbund zugreifen.`
+
+Additional finding:
+- The one-time authorization from the prior take-ownership attempt did not persist.
+- Re-attempting the ownership flow prompted again for the initial value read.
