@@ -15,7 +15,7 @@ This repo collects minimal, reproducible proofs for how macOS Keychain behaves: 
   - observed prompt behavior
   - cleanup command
 
-## Proofs to build
+## Implemented proofs
 
 ### 1. security-cli: create and read own generic password
 
@@ -43,7 +43,18 @@ Questions:
 - Does the read show a Keychain prompt for `/usr/bin/security`?
 - Does the ACL list change after the `security` CLI read attempt?
 
-### 4. Update existing item
+### 4. security-cli create, keychain-probe read
+
+Prove whether the Swift `keychain-probe` binary can read a generic password created by `/usr/bin/security`, and whether ACL inspection prompts separately.
+
+Questions:
+- If `/usr/bin/security` creates the item, can `keychain-probe read` read it after one-time authorization?
+- Does `keychain-probe read` show one GUI prompt?
+- Does `keychain-probe acl-list` show a separate GUI prompt?
+
+## Proof ideas
+
+### Update existing item
 
 Prove whether updating an existing Keychain item prompts differently from creating or reading it.
 
@@ -52,7 +63,7 @@ Questions:
 - Does updating preserve, reset, or alter access control entries?
 - Can an allowed binary update without another prompt?
 
-### 5. Delete existing item
+### Delete existing item
 
 Prove whether deleting a Keychain item requires user confirmation.
 
@@ -61,7 +72,7 @@ Questions:
 - Does deletion behavior depend on who created the item?
 - Does deletion behavior differ for locked vs unlocked keychains?
 
-### 6. Access after first approval
+### Access after first approval
 
 Prove whether approving a Keychain access prompt persists for future reads.
 
@@ -70,7 +81,7 @@ Questions:
 - After clicking “Allow”, does the next read prompt again?
 - Is approval tied to binary path, code signature, or both?
 
-### 7. Binary path changes
+### Binary path changes
 
 Prove whether moving or copying an approved binary invalidates Keychain trust.
 
@@ -79,7 +90,7 @@ Questions:
 - If the binary is copied, does it prompt again?
 - If a symlink invokes the same binary, which path identity is used?
 
-### 8. Binary rebuild changes
+### Binary rebuild changes
 
 Prove whether rebuilding a binary invalidates previous Keychain approval.
 
@@ -88,7 +99,7 @@ Questions:
 - Does a recompiled ad-hoc signed binary prompt again?
 - Does preserving bundle identifier or signing identity affect behavior?
 
-### 9. Shell script vs compiled binary
+### Shell script vs compiled binary
 
 Prove whether Keychain sees shell scripts as the script, shell interpreter, or calling process.
 
@@ -97,7 +108,7 @@ Questions:
 - Does running the same script from fish, bash, zsh, and Bun change prompt behavior?
 - Does `osascript`, `swift`, or `bun` change the identity shown in prompts?
 
-### 10. Node/Bun/Swift native Keychain APIs
+### Node/Bun/Swift native Keychain APIs
 
 Prove prompt behavior for native API access rather than the `security` CLI.
 
@@ -106,7 +117,7 @@ Questions:
 - Does a Swift CLI using Security.framework prompt differently?
 - What app name is displayed in the prompt?
 
-### 11. Access groups and trusted applications
+### Access groups and trusted applications
 
 Prove how explicit trusted application lists affect prompts.
 
@@ -115,7 +126,7 @@ Questions:
 - Can we create an item that multiple binaries can read silently?
 - What happens when the trusted app list is empty?
 
-### 12. Keychain lock state
+### Keychain lock state
 
 Prove behavior when the login keychain is locked or unlocked.
 
@@ -124,7 +135,7 @@ Questions:
 - Does creating an item require unlock?
 - Does CI/headless execution fail differently when locked?
 
-### 13. Headless and non-GUI sessions
+### Headless and non-GUI sessions
 
 Prove behavior over SSH, launchd, cron-like jobs, and background agents.
 
@@ -133,7 +144,7 @@ Questions:
 - Does it hang, fail, or return an error?
 - Which error codes appear in each environment?
 
-### 14. iCloud Keychain vs local login keychain
+### iCloud Keychain vs local login keychain
 
 Prove whether sync-backed items behave differently from local-only items.
 
@@ -142,7 +153,7 @@ Questions:
 - Does synced state affect access prompts on another Mac?
 - Are access control approvals synced or local-only?
 
-### 15. Item attributes matrix
+### Item attributes matrix
 
 Prove which item attributes affect lookup and access.
 
@@ -151,7 +162,7 @@ Questions:
 - Can two similar items cause ambiguous reads?
 - Does label/comment/description affect prompt text?
 
-### 16. Error code catalogue
+### Error code catalogue
 
 Collect exact errors for common failure modes.
 
@@ -174,7 +185,7 @@ macos-keychain-analysis/
     01-security-cli-create-read-own/
     02-keychain-probe-create-read-own/
     03-read-probe-item-with-security-cli/
-    04-update-existing/
+    04-security-cli-create-probe-read/
     ...
   scripts/
     cleanup-all.ts

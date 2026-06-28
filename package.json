@@ -14,7 +14,9 @@
     "keychain-probe:build": "swift build --package-path packages/keychain-probe",
     "keychain-probe:run": "swift run --package-path packages/keychain-probe keychain-probe",
     "proof:03": "bun run proofs/03-read-probe-item-with-security-cli/proof.ts",
-    "proof:03:cleanup": "bun run proofs/03-read-probe-item-with-security-cli/proof.ts --cleanup"
+    "proof:03:cleanup": "bun run proofs/03-read-probe-item-with-security-cli/proof.ts --cleanup",
+    "proof:04": "bun run proofs/04-security-cli-create-probe-read/proof.ts",
+    "proof:04:cleanup": "bun run proofs/04-security-cli-create-probe-read/proof.ts --cleanup"
   },
   "devDependencies": {
     "@types/bun": "latest"
