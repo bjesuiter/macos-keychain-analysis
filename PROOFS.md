@@ -17,9 +17,9 @@ This repo collects minimal, reproducible proofs for how macOS Keychain behaves: 
 
 ## Proofs to build
 
-### 1. Create and read own generic password
+### 1. security-cli: create and read own generic password
 
-Prove whether the same process/tool that creates a generic password can read it back without prompting.
+Prove whether the macOS `security` CLI that creates a generic password can read it back without prompting.
 
 Questions:
 - Does `security add-generic-password` followed by `security find-generic-password -w` prompt?
@@ -162,7 +162,7 @@ macos-keychain-analysis/
   PROOFS.md
   README.md
   proofs/
-    01-create-read-own/
+    01-security-cli-create-read-own/
     02-read-other-binary/
     03-update-existing/
     ...
