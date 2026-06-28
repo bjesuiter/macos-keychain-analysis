@@ -16,7 +16,11 @@
     "proof:03": "bun run proofs/03-read-probe-item-with-security-cli/proof.ts",
     "proof:03:cleanup": "bun run proofs/03-read-probe-item-with-security-cli/proof.ts --cleanup",
     "proof:04": "bun run proofs/04-security-cli-create-probe-read/proof.ts",
-    "proof:04:cleanup": "bun run proofs/04-security-cli-create-probe-read/proof.ts --cleanup"
+    "proof:04:cleanup": "bun run proofs/04-security-cli-create-probe-read/proof.ts --cleanup",
+    "proof:04a": "bun run proofs/04a-security-cli-create-probe-read-no-acl/proof.ts",
+    "proof:04a:cleanup": "bun run proofs/04a-security-cli-create-probe-read-no-acl/proof.ts --cleanup",
+    "proof:04b": "bun run proofs/04b-security-cli-create-probe-acl-only/proof.ts",
+    "proof:04b:cleanup": "bun run proofs/04b-security-cli-create-probe-acl-only/proof.ts --cleanup"
   },
   "devDependencies": {
     "@types/bun": "latest"

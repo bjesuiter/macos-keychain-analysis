@@ -42,16 +42,39 @@ bun run keychain-probe:run -- daemon-stdio
 
 ## Proofs
 
-Run the first proof, which uses the macOS `security` CLI:
+Run a proof:
 
 ```fish
 bun run proof:01
+bun run proof:02
+bun run proof:03
+bun run proof:04
+bun run proof:04a
+bun run proof:04b
 ```
 
-Clean up its disposable Keychain items:
+Clean up disposable Keychain items:
 
 ```fish
 bun run proof:01:cleanup
+bun run proof:02:cleanup
+bun run proof:03:cleanup
+bun run proof:04:cleanup
+bun run proof:04a:cleanup
+bun run proof:04b:cleanup
 ```
 
 The scripts use disposable test values only. They print each command, expected prompt behavior, observed command result, and cleanup instructions.
+
+## Current observations
+
+Observations are stored in `./observations`.
+
+Important findings so far:
+
+- Proof 01: `/usr/bin/security` can create and read its own generic password without a GUI prompt.
+- Proof 02: `keychain-probe` can create and read its own generic password without a GUI prompt when the item ACL trusts that binary.
+- Proof 03: cross-binary secret reads prompt when `keychain-probe` creates the item and `/usr/bin/security` reads the password.
+- Proof 04 and 04a: cross-binary secret reads prompt when `/usr/bin/security` creates the item and `keychain-probe` reads the password.
+- Proof 04b: reading an item's ACLs with `keychain-probe acl-list` is allowed without a GUI prompt, even when the item was created by `/usr/bin/security` and `keychain-probe` is not listed as the trusted creator.
+- Proof 04a: `keychain-probe read` alone produced two prompt wordings for one password read: one about using confidential information, and one about accessing the key. This is not caused by a later ACL read.

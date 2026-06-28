@@ -52,6 +52,22 @@ Questions:
 - Does `keychain-probe read` show one GUI prompt?
 - Does `keychain-probe acl-list` show a separate GUI prompt?
 
+### 4a. security-cli create, keychain-probe read, no ACL read
+
+Repeat proof 4 without calling `keychain-probe acl-list` at the end, to isolate the password-value read prompt.
+
+Questions:
+- If `/usr/bin/security` creates the item, does `keychain-probe read` produce exactly one GUI prompt?
+- Does omitting `keychain-probe acl-list` avoid the second ACL-related prompt?
+
+### 4b. security-cli create, keychain-probe ACL only
+
+Repeat proof 4 but only call `keychain-probe acl-list`, without reading the password value first.
+
+Questions:
+- If `/usr/bin/security` creates the item, does `keychain-probe acl-list` produce a GUI prompt by itself?
+- Can Security.framework inspect ACLs for an item created by `/usr/bin/security` without reading the secret data?
+
 ## Proof ideas
 
 ### Update existing item
@@ -186,6 +202,8 @@ macos-keychain-analysis/
     02-keychain-probe-create-read-own/
     03-read-probe-item-with-security-cli/
     04-security-cli-create-probe-read/
+    04a-security-cli-create-probe-read-no-acl/
+    04b-security-cli-create-probe-acl-only/
     ...
   scripts/
     cleanup-all.ts

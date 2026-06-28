@@ -279,3 +279,97 @@ Notes:
 - This is the inverse of proof 3: crossing from creator `/usr/bin/security` to reader `keychain-probe` triggered GUI authorization prompts.
 - The two prompts are expected in this proof: one prompt came from `keychain-probe read`, and the other came from `keychain-probe acl-list`.
 - The two prompt wordings match those separate operations: reading confidential information vs accessing the key/item for ACL inspection.
+
+## Proof 04a: security-cli create, keychain-probe read, no ACL read
+
+Creator: `/usr/bin/security`
+Reader: `packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe`
+
+Command sequence:
+
+```fish
+/usr/bin/swift build --package-path packages/keychain-probe
+/usr/bin/security delete-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-04a.security-create-probe-read-no-acl
+/usr/bin/security add-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-04a.security-create-probe-read-no-acl -w disposable-proof-secret -l 'macos-keychain-analysis proof 04a security create probe read no acl'
+/usr/bin/security find-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-04a.security-create-probe-read-no-acl
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe whoami
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe read --service macos-keychain-analysis.proof-04a.security-create-probe-read-no-acl --account macos-keychain-analysis
+```
+
+Expected prompt behavior:
+- `/usr/bin/security` creation should normally be silent.
+- `keychain-probe read` was expected to show one GUI prompt.
+- No ACL read is performed, so the proof expected no second ACL-related prompt.
+
+Observed prompt behavior:
+- Prompt shown during cleanup: no; command exited 44 because the item was missing.
+- Prompt shown during `/usr/bin/security` create: no
+- Prompt shown during `/usr/bin/security` attribute read: no
+- Prompt shown during `keychain-probe read`: yes, two GUI prompts
+- App name shown in prompts: `keychain-probe`
+- Keychain named in prompts: `Anmeldung`
+- Item named in prompts: `macos-keychain-analysis proof 04a security create probe read no acl`
+
+Prompt screenshots:
+- `observations/screenshots/proof-04a-keychain-probe-prompt-1.png`
+- `observations/screenshots/proof-04a-keychain-probe-prompt-2.png`
+
+Prompt text observed:
+- Prompt 1: `keychain-probe möchte deine vertraulichen Informationen verwenden, die in „macos-keychain-analysis proof 04a security create probe read no acl“ in deinem Schlüsselbund gesichert sind.`
+- Prompt 2: `keychain-probe möchte auf den Schlüssel „macos-keychain-analysis proof 04a security create probe read no acl“ in deinem Schlüsselbund zugreifen.`
+
+Observed command result:
+- Build exit code: 0
+- Cleanup exit code: 44 when stale item was missing
+- Create exit code: 0
+- Security CLI attribute read exit code: 0
+- keychain-probe read exit code: 0
+- keychain-probe read matched expected disposable secret: yes
+
+Notes:
+- This disproves the proof 4 assumption that the second prompt was caused by the explicit `keychain-probe acl-list` command.
+- `keychain-probe read` alone can trigger both prompt wordings when reading an item created by `/usr/bin/security`.
+- No daemon restart was involved in this run; the proof invokes the `keychain-probe` executable as a fresh process for each command.
+
+Open questions:
+- Why does a single `SecItemCopyMatching` data read from `keychain-probe` produce both prompt wordings for this cross-binary access case?
+
+## Proof 04b: security-cli create, keychain-probe ACL only
+
+Creator: `/usr/bin/security`
+ACL reader: `packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe`
+
+Command sequence:
+
+```fish
+/usr/bin/swift build --package-path packages/keychain-probe
+/usr/bin/security delete-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-04b.security-create-probe-acl-only
+/usr/bin/security add-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-04b.security-create-probe-acl-only -w disposable-proof-secret -l 'macos-keychain-analysis proof 04b security create probe acl only'
+/usr/bin/security find-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-04b.security-create-probe-acl-only
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe whoami
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe acl-list --service macos-keychain-analysis.proof-04b.security-create-probe-acl-only --account macos-keychain-analysis
+```
+
+Expected prompt behavior:
+- `/usr/bin/security` creation should normally be silent.
+- `keychain-probe acl-list` may prompt, but no password-value read is performed.
+
+Observed prompt behavior:
+- Prompt shown during cleanup: no; command exited 44 because the item was missing.
+- Prompt shown during `/usr/bin/security` create: no
+- Prompt shown during `/usr/bin/security` attribute read: no
+- Prompt shown during `keychain-probe acl-list`: no
+
+Observed command result:
+- Build exit code: 0
+- Cleanup exit code: 44 when stale item was missing
+- Create exit code: 0
+- Security CLI attribute read exit code: 0
+- keychain-probe ACL list exit code: 0
+
+Observed ACL details:
+- ACL list included `/usr/bin/security` as a trusted application.
+- ACL list did not require authorizing `keychain-probe`.
+
+Important finding:
+- ACL requests are allowed without a GUI prompt in this scenario. A process can inspect an item's ACL with `SecKeychainItemCopyAccess` / `SecAccessCopyACLList` / `SecACLCopyContents` without being authorized to read the secret value.
