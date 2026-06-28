@@ -148,6 +148,15 @@ Questions:
 - Does changing `keychain-probe`'s CDHash cause a new Keychain prompt?
 - Would users be prompted again after each Swift helper binary update?
 
+### 11. keychain-probe-created item after keychain-probe rebuild
+
+Create an item with `keychain-probe`, verify reads are silent, rebuild `keychain-probe` with a changed CDHash, then read the same item again.
+
+Questions:
+- Can an item created by `keychain-probe` still be read without prompting after `keychain-probe` is rebuilt?
+- Is creator ownership tied to path, designated requirement, CDHash, or another identity?
+- Does this behave differently from Proof 10's `/usr/bin/security`-created item with Always Allow?
+
 ## Proof ideas
 
 ### Update an existing ACL entry like original `addToACL`

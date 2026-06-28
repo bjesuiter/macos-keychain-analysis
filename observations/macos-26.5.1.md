@@ -805,3 +805,45 @@ Important finding:
 - Always Allow was invalidated by rebuilding `keychain-probe` when the CDHash changed.
 - This supports the hypothesis that the persistent Always Allow grant is tied to a code identity / CDHash, not just the filesystem path.
 - This is relevant for Varlock helper updates: users may be prompted again after helper binary updates if the persisted grant is CDHash-based.
+
+## Proof 11: keychain-probe-created item after keychain-probe rebuild
+
+Goal:
+- Create a generic password with `keychain-probe`.
+- Verify reads are silent before rebuild.
+- Rebuild `keychain-probe` with a changed source marker and changed CDHash.
+- Read the same item again after rebuild.
+
+Observed CDHashes:
+- Initial `keychain-probe` CDHash: `4bfb776864b888eea760e5fdc664dc3c1e165fd8`
+- Rebuilt `keychain-probe` CDHash: `282c7dffc6e8b24734267b21f65c0bb2c4a2c4f3`
+- CDHash changed: yes
+
+Observed prompt behavior:
+- User reported four prompts during the proof run.
+- Two prompts used the confidential-information wording.
+- Two prompts used the key-access wording.
+- The command output still showed all reads succeeding and matching the expected disposable secret.
+
+Prompt screenshots:
+- `observations/screenshots/proof-11-prompt-1-confidential-info.png`
+- `observations/screenshots/proof-11-prompt-2-key-access.png`
+- `observations/screenshots/proof-11-prompt-3-confidential-info.png`
+- `observations/screenshots/proof-11-prompt-4-key-access.png`
+
+Prompt text variants observed:
+- `keychain-probe möchte deine vertraulichen Informationen verwenden, die in „macos-keychain-analysis proof 11 probe created after rebuild“ in deinem Schlüsselbund gesichert sind.`
+- `keychain-probe möchte auf den Schlüssel „macos-keychain-analysis proof 11 probe created after rebuild“ in deinem Schlüsselbund zugreifen.`
+
+Observed ACL details:
+- Before rebuild, ACL output included the built `keychain-probe` executable path as a trusted application.
+- Before rebuild, partition list included the initial CDHash only:
+  - `cdhash:4bfb776864b888eea760e5fdc664dc3c1e165fd8`
+- After rebuild, reads still succeeded silently even though the partition list still contained only the old initial CDHash.
+- After rebuild, ACL output still showed the same trusted application path and the old CDHash partition entry.
+
+Important finding:
+- This run did not prove prompt-free access after rebuild. The user observed four prompts.
+- An item created by `keychain-probe` remained readable after rebuild in the sense that all reads succeeded, but access was not silent.
+- The four prompts came in the same two wording classes seen in earlier double-prompt proofs: confidential-information use and key access.
+- The ACL output still showed the old initial CDHash in the partition list after rebuild, which may explain why the rebuilt ad-hoc binary prompted.

@@ -38,7 +38,9 @@
     "proof:09": "bun run proofs/09-security-cli-set-cdhash-partition/proof.ts",
     "proof:09:cleanup": "bun run proofs/09-security-cli-set-cdhash-partition/proof.ts --cleanup",
     "proof:10": "bun run proofs/10-always-allow-after-probe-rebuild/proof.ts",
-    "proof:10:cleanup": "bun run proofs/10-always-allow-after-probe-rebuild/proof.ts --cleanup"
+    "proof:10:cleanup": "bun run proofs/10-always-allow-after-probe-rebuild/proof.ts --cleanup",
+    "proof:11": "bun run proofs/11-probe-created-item-after-rebuild/proof.ts",
+    "proof:11:cleanup": "bun run proofs/11-probe-created-item-after-rebuild/proof.ts --cleanup"
   },
   "devDependencies": {
     "@types/bun": "latest"
