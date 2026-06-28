@@ -134,6 +134,41 @@ func executablePath() -> String {
     Bundle.main.executablePath ?? CommandLine.arguments[0]
 }
 
+func unlockForAccessFix(keychainName: String?) {
+    let keychain: SecKeychain
+    if let keychainName, !keychainName.isEmpty {
+        guard let selected = searchList(keychainName: keychainName)?.first else {
+            fail("Keychain not found: \(keychainName)")
+        }
+        keychain = selected
+    } else {
+        var defaultKeychain: SecKeychain?
+        let copyStatus = SecKeychainCopyDefault(&defaultKeychain)
+        guard copyStatus == errSecSuccess, let defaultKeychain else {
+            fail("SecKeychainCopyDefault failed", status: copyStatus)
+        }
+        keychain = defaultKeychain
+    }
+
+    var keychainStatus = SecKeychainStatus()
+    let statusResult = SecKeychainGetStatus(keychain, &keychainStatus)
+    guard statusResult == errSecSuccess else {
+        fail("SecKeychainGetStatus failed", status: statusResult)
+    }
+
+    let unlockedStatus = SecKeychainStatus(1)
+    if (keychainStatus & unlockedStatus) != 0 {
+        printJson(JsonOk(result: ["unlocked": true, "changed": false]))
+        return
+    }
+
+    let unlockStatus = SecKeychainUnlock(keychain, 0, nil, false)
+    guard unlockStatus == errSecSuccess else {
+        fail("SecKeychainUnlock failed", status: unlockStatus)
+    }
+    printJson(JsonOk(result: ["unlocked": true, "changed": true]))
+}
+
 func add(service: String, account: String, value: String, label: String?, update: Bool) {
     var query = baseQuery(service: service, account: account)
     query[kSecValueData] = Data(value.utf8)
@@ -482,6 +517,7 @@ func usage() -> Never {
       acl-contains --service S --account A --path PATH
       add-to-acl --service S [--account A] [--keychain K] [--path APP]
       fix-access --service S [--account A] [--keychain K] [--path APP]
+      unlock-for-access-fix [--keychain K]
       verify-access-and-fix-acl --service S --account A [--keychain K] [--path APP]
       daemon-stdio
       whoami
@@ -560,6 +596,8 @@ func run(_ args: [String]) {
             keychainName: arg("--keychain", in: args),
             appPath: arg("--path", in: args) ?? executablePath()
         )
+    case "unlock-for-access-fix":
+        unlockForAccessFix(keychainName: arg("--keychain", in: args))
     case "verify-access-and-fix-acl":
         verifyAccessAndFixACL(
             service: requireArg("--service", in: args),

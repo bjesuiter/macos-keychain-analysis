@@ -936,3 +936,92 @@ Important finding:
 - For a stably signed `keychain-probe`, Always Allow on a `/usr/bin/security`-created item survived rebuild/re-sign even though CDHash changed.
 - The ACL partition list included `teamid:BB38WRH6VJ`, which likely explains why the rebuilt signed binary could still read without another prompt.
 - This differs from Proof 10's ad-hoc signed helper, where Always Allow was invalidated by CDHash change.
+
+### Proof 13 rerun: clean signed Always Allow behavior
+
+A second Proof 13 run was performed because the previous run may have included stale state.
+
+Observed code identity:
+- Initial CDHash: `5eac9da21075852d3d2cdf5a1047d5d96b6a0c02`
+- Rebuilt CDHash: `31aee137f46571772b0382c06c96117efa86bf5f`
+- CDHash changed: yes
+- Designated requirement changed: no
+
+Observed prompt behavior:
+- Exactly one prompt appeared on the first read before rebuild.
+- User action: clicked `Immer erlauben` / Always Allow.
+- No post-rebuild prompts were reported.
+- Post-rebuild reads succeeded and matched the expected disposable secret.
+
+Prompt screenshot:
+- `observations/screenshots/proof-13-rerun-first-read-always-allow-prompt.png`
+
+Observed ACL details after Always Allow:
+- Trusted application paths included the built `keychain-probe` path and `/usr/bin/security`.
+- Partition list included:
+  - `apple-tool:`
+  - `teamid:BB38WRH6VJ`
+- No `cdhash:` entry was present in the clean rerun partition list.
+
+Important finding:
+- For a stably signed `keychain-probe`, a security-created item can be Always Allowed once and remains readable after rebuild/re-sign.
+- The clean rerun supports that the durable grant is based on the stable Team ID/signing identity, not the changing CDHash.
+
+## Proof 14: cross-process read of two secrets
+
+Creator: `/usr/bin/security`
+Reader: `packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe`
+
+Command sequence:
+
+```fish
+bun run proof:14
+```
+
+Expanded read sequence:
+
+```fish
+/usr/bin/security add-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-14.cross-process-two-secrets.one -w disposable-proof-secret-one -l 'macos-keychain-analysis proof 14 cross-process two secrets one'
+/usr/bin/security add-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-14.cross-process-two-secrets.two -w disposable-proof-secret-two -l 'macos-keychain-analysis proof 14 cross-process two secrets two'
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe read --service macos-keychain-analysis.proof-14.cross-process-two-secrets.one --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe read --service macos-keychain-analysis.proof-14.cross-process-two-secrets.two --account macos-keychain-analysis
+```
+
+Expected prompt behavior:
+- Based on earlier single-secret reads, each cross-process read was expected to show two prompts.
+- Across two secrets, expected total: four prompts.
+
+Observed prompt behavior:
+- Prompt shown during cleanup: no; commands exited 44 because items were missing.
+- Prompt shown during `/usr/bin/security` create: no.
+- Prompt shown during first `keychain-probe read`: yes, two GUI prompts.
+- Prompt shown during second `keychain-probe read`: yes, two GUI prompts.
+- Total prompts: 4.
+- App name shown in prompts: `keychain-probe`.
+- Keychain named in prompts: `Anmeldung`.
+- User action: allowed the prompts. The first three prompts were screenshot; the fourth prompt was not screenshot but was reported to look identical to the second prompt shape.
+
+Prompt screenshots:
+- `observations/screenshots/proof-14-first-read-prompt-1.png`
+- `observations/screenshots/proof-14-first-read-prompt-2.png`
+- `observations/screenshots/proof-14-second-read-prompt-1.png`
+- Fourth prompt: no screenshot captured; reported identical to the second prompt wording/shape.
+
+Prompt text observed:
+- First read, prompt 1: `keychain-probe möchte deine vertraulichen Informationen verwenden, die in „macos-keychain-analysis proof 14 cross-process two secrets one“ in deinem Schlüsselbund gesichert sind.`
+- First read, prompt 2: `keychain-probe möchte auf den Schlüssel „macos-keychain-analysis proof 14 cross-process two secrets one“ in deinem Schlüsselbund zugreifen.`
+- Second read, prompt 1: `keychain-probe möchte deine vertraulichen Informationen verwenden, die in „macos-keychain-analysis proof 14 cross-process two secrets two“ in deinem Schlüsselbund gesichert sind.`
+- Second read, prompt 2: not screenshot, but reported to match the first read's second prompt with item `...two`.
+
+Observed command result:
+- Build exit code: 0.
+- Cleanup exit code: 44 when stale items were missing.
+- Create exit codes: 0.
+- First `keychain-probe read` exit code: 0.
+- First read matched expected disposable secret: yes.
+- Second `keychain-probe read` exit code: 0.
+- Second read matched expected disposable secret: yes.
+
+Important finding:
+- Reading two `/usr/bin/security`-created secrets from the cross-process `keychain-probe` produced four prompts total.
+- This confirms the earlier single-secret behavior scales linearly: one secret read can produce two GUI prompts, so two distinct secret reads can produce four GUI prompts.
