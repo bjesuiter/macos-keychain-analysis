@@ -82,3 +82,59 @@ Observed command result:
 Notes:
 - Explicitly trusting `/usr/bin/security` also requires no prompt.
 - This does not protect the secret from other processes that can invoke `/usr/bin/security` as the current user.
+
+## Proof 02: keychain-probe create and read own generic password
+
+Tool under test: `packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe`
+
+Command aliases used below:
+
+```fish
+set PROBE packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe
+set ACCOUNT macos-keychain-analysis
+set SECRET disposable-proof-secret
+set SERVICE macos-keychain-analysis.proof-02.keychain-probe-own
+set LABEL 'macos-keychain-analysis proof 02 keychain-probe own'
+```
+
+Command sequence:
+
+```fish
+/usr/bin/swift build --package-path packages/keychain-probe
+$PROBE delete --service $SERVICE --account $ACCOUNT
+$PROBE whoami
+$PROBE add --service $SERVICE --account $ACCOUNT --value $SECRET --label $LABEL
+$PROBE read --service $SERVICE --account $ACCOUNT
+$PROBE metadata --service $SERVICE --account $ACCOUNT
+$PROBE acl-list --service $SERVICE --account $ACCOUNT
+```
+
+Expected prompt behavior:
+- Creation should normally be silent.
+- Read may prompt or stay silent depending on the ACL macOS creates for this `keychain-probe` binary.
+
+Observed prompt behavior:
+- Prompt shown during cleanup: no
+- Prompt shown during create: no
+- Prompt shown during read: no
+- Prompt shown during metadata read: no
+- Prompt shown during ACL list read: no
+- App name shown in prompt: n/a
+- User action: n/a
+
+Observed command result:
+- Build exit code: 0
+- Cleanup exit code: 0
+- Create exit code: 0
+- Read exit code: 0
+- Read matched expected disposable secret: yes
+- Metadata exit code: 0
+- ACL list exit code: 0
+
+Observed ACL details:
+- ACL list included the built `keychain-probe` executable path as a trusted application:
+  `/Users/bjesuiter/Develop/bjesuiter/macos-keychain-analysis/packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe`
+
+Notes:
+- A Swift Security.framework CLI can create a generic password and read it back silently from the same binary identity.
+- The item ACL records the creating `keychain-probe` binary path as trusted.
