@@ -1,0 +1,10 @@
+{
+  "name": "@macos-keychain-analysis/keychain-probe",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "swift build",
+    "run": "swift run keychain-probe"
+  }
+}

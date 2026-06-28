@@ -3,9 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "proof:01": "bun run proofs/01-security-cli-create-read-own/proof.ts",
-    "proof:01:cleanup": "bun run proofs/01-security-cli-create-read-own/proof.ts --cleanup"
+    "proof:01:cleanup": "bun run proofs/01-security-cli-create-read-own/proof.ts --cleanup",
+    "keychain-probe:build": "swift build --package-path packages/keychain-probe",
+    "keychain-probe:run": "swift run --package-path packages/keychain-probe keychain-probe"
   },
   "devDependencies": {
     "@types/bun": "latest"
