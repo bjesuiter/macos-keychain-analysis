@@ -14,6 +14,7 @@ const account = "macos-keychain-analysis";
 const password = "disposable-proof-secret";
 const servicePrefix = "macos-keychain-analysis.proof-01";
 const cleanupOnly = Bun.argv.includes("--cleanup");
+const observationPath = "observations/macos-26.5.1.md";
 
 const cases = [
   {
@@ -94,7 +95,8 @@ async function main(): Promise<void> {
   }
 
   console.log("\n## What to record manually");
-  console.log("For each read command, note whether macOS showed a Keychain prompt, the app name shown in the prompt, and whether you clicked Allow, Always Allow, Deny, or Cancel.");
+  console.log("For each command, note whether macOS showed a Keychain prompt, the app name shown in the prompt, and whether you clicked Allow, Always Allow, Deny, or Cancel.");
+  console.log(`Record observations in: ${observationPath}`);
 
   for (const proofCase of cases) {
     console.log(`\n## Case: ${proofCase.name}`);
@@ -127,6 +129,7 @@ async function main(): Promise<void> {
 
   console.log("\n## Cleanup command");
   console.log("bun run proof:01:cleanup");
+  console.log(`\n## Observation log\nRecord prompt observations in: ${observationPath}`);
 }
 
 main().catch((error) => {
