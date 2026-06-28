@@ -29,6 +29,8 @@ struct ACLEntryResult: Encodable {
     let description: String?
     let promptSelector: UInt32
     let trustedApplicationPaths: [String]
+    let authorizations: [String]
+    let authorizationsRaw: [UInt32]
 }
 
 struct ACLListResult: Encodable {
@@ -210,11 +212,44 @@ func aclEntries(service: String, account: String) -> [ACLEntryResult] {
             return String(data: appData as Data, encoding: .utf8)
         }
 
+        let authorizations = SecACLCopyAuthorizations(acl) as? [NSNumber] ?? []
+        let authorizationsRaw = authorizations.map { $0.uint32Value }
+        let authorizationNames = authorizationsRaw.map(authorizationName)
+
         return ACLEntryResult(
             description: description as String?,
             promptSelector: UInt32(promptSelector.rawValue),
-            trustedApplicationPaths: paths
+            trustedApplicationPaths: paths,
+            authorizations: authorizationNames,
+            authorizationsRaw: authorizationsRaw
         )
+    }
+}
+
+func authorizationName(_ value: UInt32) -> String {
+    // CSSM_ACL_AUTHORIZATION_TAG values exposed by SecACLCopyAuthorizations.
+    // Keep raw values too because these constants are not surfaced by modern Swift SDK overlays.
+    switch value {
+    case 0: return "any"
+    case 1: return "login"
+    case 2: return "gen-key"
+    case 3: return "delete"
+    case 4: return "export-wrapped"
+    case 5: return "export-clear"
+    case 6: return "import-wrapped"
+    case 7: return "import-clear"
+    case 8: return "sign"
+    case 9: return "encrypt"
+    case 10: return "decrypt"
+    case 11: return "mac"
+    case 12: return "derive"
+    case 13: return "db-read"
+    case 14: return "db-insert"
+    case 15: return "db-modify"
+    case 16: return "db-delete"
+    case 17: return "change-acl"
+    case 18: return "change-owner"
+    default: return "unknown(\(value))"
     }
 }
 

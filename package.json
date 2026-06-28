@@ -30,7 +30,9 @@
     "proof:06a": "bun run proofs/06a-security-cli-create-trust-probe-read-only/proof.ts",
     "proof:06a:cleanup": "bun run proofs/06a-security-cli-create-trust-probe-read-only/proof.ts --cleanup",
     "proof:06b": "bun run proofs/06b-security-cli-create-trust-probe-always-allow/proof.ts",
-    "proof:06b:cleanup": "bun run proofs/06b-security-cli-create-trust-probe-always-allow/proof.ts --cleanup"
+    "proof:06b:cleanup": "bun run proofs/06b-security-cli-create-trust-probe-always-allow/proof.ts --cleanup",
+    "proof:07": "bun run proofs/07-acl-authorization-decoder/proof.ts",
+    "proof:07:cleanup": "bun run proofs/07-acl-authorization-decoder/proof.ts --cleanup"
   },
   "devDependencies": {
     "@types/bun": "latest"

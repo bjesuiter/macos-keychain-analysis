@@ -112,6 +112,15 @@ Questions:
 - Does the ACL shape change further after Always Allow?
 - Is the remaining key-access prompt persisted in the ACL or elsewhere?
 
+### 7. ACL authorization decoder
+
+Enhance `keychain-probe acl-list` to include `SecACLCopyAuthorizations` output, then compare ACL authorization tags across item creation shapes.
+
+Questions:
+- Which authorization tags exist on default `/usr/bin/security` items, `security -T keychain-probe` items, and `keychain-probe` items?
+- Do authorization tags explain the different prompt behavior?
+- Which ACL entries are associated with trusted application paths, partitions, and key/item access prompts?
+
 ## Proof ideas
 
 ### Update existing item
@@ -253,6 +262,7 @@ macos-keychain-analysis/
     06-security-cli-create-trust-probe/
     06a-security-cli-create-trust-probe-read-only/
     06b-security-cli-create-trust-probe-always-allow/
+    07-acl-authorization-decoder/
     ...
   scripts/
     cleanup-all.ts

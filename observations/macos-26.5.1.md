@@ -655,3 +655,34 @@ Observed ACL details:
 Important finding:
 - For an item created with `security -T keychain-probe`, Always Allow on the first remaining key-access prompt made later reads and ACL reads silent.
 - The persistent change may not be visible as an additional trusted application path because `keychain-probe` was already present, but it is visible in the partition/hex ACL data.
+
+## Proof 07: ACL authorization decoder
+
+Tooling change:
+- `keychain-probe acl-list` now includes `authorizations` and `authorizationsRaw` from `SecACLCopyAuthorizations`.
+
+Cases:
+- `security-default`: item created by `/usr/bin/security add-generic-password`
+- `security-trust-probe`: item created by `/usr/bin/security add-generic-password -T keychain-probe`
+- `probe-default`: item created by `keychain-probe add`
+
+Observed prompt behavior:
+- First run: no GUI prompts.
+- Verification run: no GUI prompts.
+- Cleanup deletes for stale items also did not prompt.
+
+Observed command result:
+- All create commands exited 0.
+- All `keychain-probe acl-list` commands exited 0.
+- `authorizations` was `[]` for every ACL entry in every case.
+- `authorizationsRaw` was `[]` for every ACL entry in every case.
+
+Observed ACL details:
+- `security-default` trusted application paths included `/usr/bin/security`.
+- `security-trust-probe` trusted application paths included the built `keychain-probe` executable path.
+- `probe-default` trusted application paths included the built `keychain-probe` executable path.
+- Partition plist hex still differs by creation mode and remains the useful decoded signal so far.
+
+Important finding:
+- `SecACLCopyAuthorizations` did not expose useful authorization tags for these generated generic-password ACL entries on this macOS version; all entries returned empty authorization arrays.
+- Prompt differences are therefore not explained by authorization tags from this API. The partition-list plist and trusted application paths remain more informative.
