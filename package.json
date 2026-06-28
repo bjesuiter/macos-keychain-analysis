@@ -28,7 +28,9 @@
     "proof:06": "bun run proofs/06-security-cli-create-trust-probe/proof.ts",
     "proof:06:cleanup": "bun run proofs/06-security-cli-create-trust-probe/proof.ts --cleanup",
     "proof:06a": "bun run proofs/06a-security-cli-create-trust-probe-read-only/proof.ts",
-    "proof:06a:cleanup": "bun run proofs/06a-security-cli-create-trust-probe-read-only/proof.ts --cleanup"
+    "proof:06a:cleanup": "bun run proofs/06a-security-cli-create-trust-probe-read-only/proof.ts --cleanup",
+    "proof:06b": "bun run proofs/06b-security-cli-create-trust-probe-always-allow/proof.ts",
+    "proof:06b:cleanup": "bun run proofs/06b-security-cli-create-trust-probe-always-allow/proof.ts --cleanup"
   },
   "devDependencies": {
     "@types/bun": "latest"

@@ -103,6 +103,15 @@ Questions:
 - Do `keychain-probe read` calls stay silent when the item was created with `security -T keychain-probe`?
 - Were proof 6 prompts caused by ACL reads rather than secret reads?
 
+### 6b. security-cli create with explicit trusted keychain-probe, then Always Allow
+
+Create an item with `security -T keychain-probe`, choose Always Allow on the first remaining key-access prompt, then inspect ACLs and read again.
+
+Questions:
+- Does Always Allow make future reads silent after `security -T keychain-probe`?
+- Does the ACL shape change further after Always Allow?
+- Is the remaining key-access prompt persisted in the ACL or elsewhere?
+
 ## Proof ideas
 
 ### Update existing item
@@ -243,6 +252,7 @@ macos-keychain-analysis/
     05a-cross-binary-read-twice-always-allow/
     06-security-cli-create-trust-probe/
     06a-security-cli-create-trust-probe-read-only/
+    06b-security-cli-create-trust-probe-always-allow/
     ...
   scripts/
     cleanup-all.ts

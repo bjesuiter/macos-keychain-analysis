@@ -603,3 +603,55 @@ Important finding:
 - `security add-generic-password -T keychain-probe` did not make read-only access fully prompt-free in this isolated proof.
 - The prompts were key-access prompts, not confidential-information prompts.
 - This suggests `-T keychain-probe` may authorize secret-data use but not all item/key access needed by `SecItemCopyMatching`, or that the prompt is attached to a different authorization than the secret-read authorization.
+
+## Proof 06b: security-cli create with explicit trusted keychain-probe, then Always Allow
+
+Creator: `/usr/bin/security`
+Trusted reader requested at creation time: `packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe`
+
+Command sequence:
+
+```fish
+/usr/bin/swift build --package-path packages/keychain-probe
+/usr/bin/security delete-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-06b.security-trust-probe-always-allow
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe whoami
+/usr/bin/security add-generic-password -a macos-keychain-analysis -s macos-keychain-analysis.proof-06b.security-trust-probe-always-allow -w disposable-proof-secret -l 'macos-keychain-analysis proof 06b security trust probe always allow' -T packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe acl-list --service macos-keychain-analysis.proof-06b.security-trust-probe-always-allow --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe read --service macos-keychain-analysis.proof-06b.security-trust-probe-always-allow --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe acl-list --service macos-keychain-analysis.proof-06b.security-trust-probe-always-allow --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe read --service macos-keychain-analysis.proof-06b.security-trust-probe-always-allow --account macos-keychain-analysis
+packages/keychain-probe/.build/arm64-apple-macosx/debug/keychain-probe acl-list --service macos-keychain-analysis.proof-06b.security-trust-probe-always-allow --account macos-keychain-analysis
+```
+
+Observed prompt behavior:
+- Prompt shown during cleanup: no; command exited 44 because the item was missing.
+- Prompt shown during `/usr/bin/security` create with `-T keychain-probe`: no
+- Prompt shown during ACL read before Always Allow: no
+- Prompt shown during first `keychain-probe read`: yes, one GUI prompt
+- User action: entered the login keychain password and clicked `Immer erlauben` / Always Allow.
+- Prompt shown during ACL read after Always Allow: no
+- Prompt shown during second `keychain-probe read`: no
+- Prompt shown during final ACL read: no
+- App name shown in prompt: `keychain-probe`
+- Keychain named in prompt: `Anmeldung`
+- Item named in prompt: `macos-keychain-analysis proof 06b security trust probe always allow`
+
+Prompt screenshot:
+- `observations/screenshots/proof-06b-always-allow-prompt.png`
+
+Observed command result:
+- Build exit code: 0
+- Cleanup exit code: 44 when stale item was missing
+- Create exit code: 0
+- First read exit code: 0; read matched expected disposable secret: yes
+- Second read exit code: 0; read matched expected disposable secret: yes
+- All ACL list commands exited 0
+
+Observed ACL details:
+- ACL before Always Allow included the built `keychain-probe` executable path.
+- ACL after Always Allow still included the built `keychain-probe` executable path.
+- The decoded trusted application path list looked unchanged, but the hex partition ACL data changed to include `cdhash:46766978ac756e31662040582e8d8b1f27838b17` in addition to `apple-tool:`.
+
+Important finding:
+- For an item created with `security -T keychain-probe`, Always Allow on the first remaining key-access prompt made later reads and ACL reads silent.
+- The persistent change may not be visible as an additional trusted application path because `keychain-probe` was already present, but it is visible in the partition/hex ACL data.

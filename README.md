@@ -81,3 +81,4 @@ Important findings so far:
 - Proof 05: one-time authorization does not persist for the next cross-binary read and does not add the reader binary to the persistent ACL; the second read prompts again.
 - Proof 05a: Always Allow persists by mutating the item ACL list; `keychain-probe` is added as a trusted application, and the second read is silent.
 - Proof 06 and 06a: `/usr/bin/security add-generic-password -T keychain-probe` adds `keychain-probe` to the ACL, but does not make `keychain-probe` fully prompt-free. Read-only proof 06a still prompted with key-access wording, while the reads succeeded.
+- Proof 06b: choosing Always Allow after `security -T keychain-probe` made later reads and ACL reads silent; trusted app paths looked unchanged, but partition/hex ACL data gained a `cdhash:...` entry.
