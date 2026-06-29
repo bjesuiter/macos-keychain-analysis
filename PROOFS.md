@@ -204,6 +204,15 @@ Questions:
 - Does this artificial state match the important visible ACL pieces from macOS Always Allow?
 - If a read still prompts, what ACL detail is still missing?
 
+### 21. security-created item with post-hoc trusted path plus Team ID partition
+
+Create an item with `/usr/bin/security` without `-T`, then use signed `keychain-probe add-to-acl` to add the helper to legacy trusted application paths, then use `security set-generic-password-partition-list` to set `apple-tool:,teamid:<TEAMID>`.
+
+Questions:
+- Does post-hoc legacy trusted-app path mutation plus `teamid:<TEAMID>` partition grant make signed-helper reads prompt-free?
+- Does this reproduce the prompt-free behavior of creation-time `-T` plus partition grant from Proof 20?
+- Which prompts occur during repair: one Keychain prompt for trusted-path addition and one custom password dialog for partition-list mutation?
+
 ### Update an existing ACL entry like original `addToACL`
 
 Prove whether a Swift helper can update an existing item's ACL the same way Varlock's original `addToACL` picker flow did: copy `SecAccess`, append a `SecTrustedApplication` for `keychain-probe`, and write the access object back with `SecKeychainItemSetAccess`.

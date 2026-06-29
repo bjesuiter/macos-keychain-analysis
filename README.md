@@ -64,6 +64,7 @@ bun run proof:17
 bun run proof:18
 bun run proof:19
 bun run proof:20
+bun run proof:21
 ```
 
 Clean up disposable Keychain items:
@@ -83,6 +84,7 @@ bun run proof:17:cleanup
 bun run proof:18:cleanup
 bun run proof:19:cleanup
 bun run proof:20:cleanup
+bun run proof:21:cleanup
 ```
 
 The scripts use disposable test values only. They print each command, expected prompt behavior, observed command result, and cleanup instructions.
@@ -107,6 +109,7 @@ Important findings so far:
 - Proof 18: Always Allow works even without prior `security -T`. Starting from a normal `/usr/bin/security`-created item, the signed helper's first read prompted once; choosing Always Allow added both the helper trusted-app path and `teamid:BB38WRH6VJ`, and later reads were silent.
 - Proof 19: a manually-set `teamid:<TEAMID>` partition grant alone did **not** recreate prompt-free access. The item had `apple-tool:,teamid:BB38WRH6VJ` and no helper trusted-app path, but screenshots showed `keychain-probe` prompts during reads.
 - Proof 20: the fully artificial Always Allow-like state **was** prompt-free: `security -T signed-keychain-probe` plus `security set-generic-password-partition-list -S apple-tool:,teamid:BB38WRH6VJ` produced silent signed-helper reads without clicking Always Allow.
+- Proof 21: tests the post-hoc version of Proof 20: create without `-T`, add the signed helper to legacy trusted-app paths via `keychain-probe add-to-acl`, add `teamid:<TEAMID>` via `security set-generic-password-partition-list`, then verify whether signed-helper reads prompt.
 
 Current bottom line:
 

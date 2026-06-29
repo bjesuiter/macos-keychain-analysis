@@ -60,7 +60,9 @@
     "proof:19": "PROOF19_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/19-security-created-set-teamid-partition-only/proof.ts",
     "proof:19:cleanup": "PROOF19_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/19-security-created-set-teamid-partition-only/proof.ts --cleanup",
     "proof:20": "PROOF20_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/20-security-created-t-plus-teamid-partition/proof.ts",
-    "proof:20:cleanup": "PROOF20_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/20-security-created-t-plus-teamid-partition/proof.ts --cleanup"
+    "proof:20:cleanup": "PROOF20_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/20-security-created-t-plus-teamid-partition/proof.ts --cleanup",
+    "proof:21": "PROOF21_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/21-security-created-posthoc-acl-plus-teamid-partition/proof.ts",
+    "proof:21:cleanup": "PROOF21_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/21-security-created-posthoc-acl-plus-teamid-partition/proof.ts --cleanup"
   },
   "devDependencies": {
     "@types/bun": "latest"
