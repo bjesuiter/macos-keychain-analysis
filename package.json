@@ -58,7 +58,9 @@
     "proof:18": "PROOF18_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/18-security-created-no-t-always-allow-signed-probe/proof.ts",
     "proof:18:cleanup": "PROOF18_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/18-security-created-no-t-always-allow-signed-probe/proof.ts --cleanup",
     "proof:19": "PROOF19_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/19-security-created-set-teamid-partition-only/proof.ts",
-    "proof:19:cleanup": "PROOF19_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/19-security-created-set-teamid-partition-only/proof.ts --cleanup"
+    "proof:19:cleanup": "PROOF19_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/19-security-created-set-teamid-partition-only/proof.ts --cleanup",
+    "proof:20": "PROOF20_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/20-security-created-t-plus-teamid-partition/proof.ts",
+    "proof:20:cleanup": "PROOF20_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/20-security-created-t-plus-teamid-partition/proof.ts --cleanup"
   },
   "devDependencies": {
     "@types/bun": "latest"

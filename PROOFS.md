@@ -195,6 +195,15 @@ Questions:
 - Does the ACL output after setting the partition list contain `teamid:<TEAMID>` but no `keychain-probe` trusted application path?
 - Do repeated signed-helper reads remain silent without user-facing Always Allow?
 
+### 20. security-created item with `-T` plus Team ID partition
+
+Create an item with `/usr/bin/security -T signed-keychain-probe`, then use `security set-generic-password-partition-list` to set `apple-tool:,teamid:<TEAMID>`. This builds a fully artificial Always Allow-like state without clicking Always Allow on the read prompt.
+
+Questions:
+- Does the combination of legacy trusted-app path and `teamid:<TEAMID>` partition-list grant make signed `keychain-probe` reads prompt-free?
+- Does this artificial state match the important visible ACL pieces from macOS Always Allow?
+- If a read still prompts, what ACL detail is still missing?
+
 ### Update an existing ACL entry like original `addToACL`
 
 Prove whether a Swift helper can update an existing item's ACL the same way Varlock's original `addToACL` picker flow did: copy `SecAccess`, append a `SecTrustedApplication` for `keychain-probe`, and write the access object back with `SecKeychainItemSetAccess`.

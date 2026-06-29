@@ -63,6 +63,7 @@ bun run proof:16
 bun run proof:17
 bun run proof:18
 bun run proof:19
+bun run proof:20
 ```
 
 Clean up disposable Keychain items:
@@ -81,6 +82,7 @@ bun run proof:16:cleanup
 bun run proof:17:cleanup
 bun run proof:18:cleanup
 bun run proof:19:cleanup
+bun run proof:20:cleanup
 ```
 
 The scripts use disposable test values only. They print each command, expected prompt behavior, observed command result, and cleanup instructions.
@@ -104,3 +106,4 @@ Important findings so far:
 - Proof 09: `security set-generic-password-partition-list` is not a good automation tool for this project because it prompts for the keychain password on command-line stdin; omitting `-k` fails in non-interactive proof runs, while using `-k` would expose the password insecurely.
 - Proof 18: tests the focused no-`-T` case: `/usr/bin/security` creates an item without pre-trusting the helper, the signed helper reads it, the user chooses Always Allow, then repeated reads check whether that post-prompt state is prompt-free and whether ACL output shows `teamid:` partition trust and/or a legacy trusted-app path.
 - Proof 19: tests a partition-clean variant: `/usr/bin/security` creates an item without `-T`, a native Apple dialog collects the login keychain password for `security set-generic-password-partition-list`, the script sets `apple-tool:,teamid:<TEAMID>` without adding the helper path, then signed-helper reads check whether partition-list trust alone is prompt-free.
+- Proof 20: tests a fully artificial Always Allow-like state: create with `/usr/bin/security -T signed-keychain-probe`, then use the native password dialog + `security set-generic-password-partition-list` to add `teamid:<TEAMID>`, then verify whether signed-helper reads prompt.
