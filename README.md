@@ -104,6 +104,14 @@ Important findings so far:
 - Proof 06 and 06a: `/usr/bin/security add-generic-password -T keychain-probe` adds `keychain-probe` to the ACL, but does not make `keychain-probe` fully prompt-free. Read-only proof 06a still prompted with key-access wording, while the reads succeeded.
 - Proof 06b: choosing Always Allow after `security -T keychain-probe` made later reads and ACL reads silent; trusted app paths looked unchanged, but partition/hex ACL data gained a `cdhash:...` entry.
 - Proof 09: `security set-generic-password-partition-list` is not a good automation tool for this project because it prompts for the keychain password on command-line stdin; omitting `-k` fails in non-interactive proof runs, while using `-k` would expose the password insecurely.
-- Proof 18: tests the focused no-`-T` case: `/usr/bin/security` creates an item without pre-trusting the helper, the signed helper reads it, the user chooses Always Allow, then repeated reads check whether that post-prompt state is prompt-free and whether ACL output shows `teamid:` partition trust and/or a legacy trusted-app path.
-- Proof 19: tests a partition-clean variant: `/usr/bin/security` creates an item without `-T`, a native Apple dialog collects the login keychain password for `security set-generic-password-partition-list`, the script sets `apple-tool:,teamid:<TEAMID>` without adding the helper path, then signed-helper reads check whether partition-list trust alone is prompt-free.
-- Proof 20: tests a fully artificial Always Allow-like state: create with `/usr/bin/security -T signed-keychain-probe`, then use the native password dialog + `security set-generic-password-partition-list` to add `teamid:<TEAMID>`, then verify whether signed-helper reads prompt.
+- Proof 18: Always Allow works even without prior `security -T`. Starting from a normal `/usr/bin/security`-created item, the signed helper's first read prompted once; choosing Always Allow added both the helper trusted-app path and `teamid:BB38WRH6VJ`, and later reads were silent.
+- Proof 19: a manually-set `teamid:<TEAMID>` partition grant alone did **not** recreate prompt-free access. The item had `apple-tool:,teamid:BB38WRH6VJ` and no helper trusted-app path, but screenshots showed `keychain-probe` prompts during reads.
+- Proof 20: the fully artificial Always Allow-like state **was** prompt-free: `security -T signed-keychain-probe` plus `security set-generic-password-partition-list -S apple-tool:,teamid:BB38WRH6VJ` produced silent signed-helper reads without clicking Always Allow.
+
+Current bottom line:
+
+- The visible prompt-free state for a signed helper requires both legacy trusted-application path trust and a Team ID partition-list grant.
+- `security -T` alone is not enough.
+- `teamid:<TEAMID>` partition-list grant alone is not enough for the tested item shape.
+- Together, `-T` plus `teamid:<TEAMID>` reproduces the important Always Allow behavior.
+- For normal product UX, the safe path is still a real signed-helper read where the user chooses Always Allow; directly setting partition lists requires the login keychain password and is only useful as a diagnostic/admin proof.
