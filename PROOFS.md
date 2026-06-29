@@ -177,6 +177,24 @@ Questions:
 
 ## Proof ideas
 
+### 18. security-created item without `-T`, Always Allow for signed keychain-probe
+
+Create an item with `/usr/bin/security` without `-T`, read it with a stably signed `keychain-probe`, choose Always Allow, then read it repeatedly and inspect ACLs.
+
+Questions:
+- Without creation-time trusted app path pre-authorization, does Always Allow create a prompt-free cross-app read state?
+- Does the resulting ACL state contain `teamid:<TEAMID>` in the partition list?
+- Does Always Allow also add the helper to the legacy trusted application path list, or is the partition-list grant the only visible durable authorization?
+
+### 19. security-created item with Team ID partition only, no `-T`
+
+Create an item with `/usr/bin/security` without `-T`, then use `security set-generic-password-partition-list` to set `apple-tool:,teamid:<TEAMID>` while deliberately not adding the helper to legacy trusted application paths. A native Apple dialog collects the login keychain password for this proof and forwards it to the `security` CLI over stdin.
+
+Questions:
+- Is a `teamid:<TEAMID>` partition-list grant alone enough for signed `keychain-probe` to read prompt-free?
+- Does the ACL output after setting the partition list contain `teamid:<TEAMID>` but no `keychain-probe` trusted application path?
+- Do repeated signed-helper reads remain silent without user-facing Always Allow?
+
 ### Update an existing ACL entry like original `addToACL`
 
 Prove whether a Swift helper can update an existing item's ACL the same way Varlock's original `addToACL` picker flow did: copy `SecAccess`, append a `SecTrustedApplication` for `keychain-probe`, and write the access object back with `SecKeychainItemSetAccess`.

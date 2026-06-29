@@ -61,6 +61,8 @@ bun run proof:14
 bun run proof:15
 bun run proof:16
 bun run proof:17
+bun run proof:18
+bun run proof:19
 ```
 
 Clean up disposable Keychain items:
@@ -77,6 +79,8 @@ bun run proof:14:cleanup
 bun run proof:15:cleanup
 bun run proof:16:cleanup
 bun run proof:17:cleanup
+bun run proof:18:cleanup
+bun run proof:19:cleanup
 ```
 
 The scripts use disposable test values only. They print each command, expected prompt behavior, observed command result, and cleanup instructions.
@@ -98,3 +102,5 @@ Important findings so far:
 - Proof 06 and 06a: `/usr/bin/security add-generic-password -T keychain-probe` adds `keychain-probe` to the ACL, but does not make `keychain-probe` fully prompt-free. Read-only proof 06a still prompted with key-access wording, while the reads succeeded.
 - Proof 06b: choosing Always Allow after `security -T keychain-probe` made later reads and ACL reads silent; trusted app paths looked unchanged, but partition/hex ACL data gained a `cdhash:...` entry.
 - Proof 09: `security set-generic-password-partition-list` is not a good automation tool for this project because it prompts for the keychain password on command-line stdin; omitting `-k` fails in non-interactive proof runs, while using `-k` would expose the password insecurely.
+- Proof 18: tests the focused no-`-T` case: `/usr/bin/security` creates an item without pre-trusting the helper, the signed helper reads it, the user chooses Always Allow, then repeated reads check whether that post-prompt state is prompt-free and whether ACL output shows `teamid:` partition trust and/or a legacy trusted-app path.
+- Proof 19: tests a partition-clean variant: `/usr/bin/security` creates an item without `-T`, a native Apple dialog collects the login keychain password for `security set-generic-password-partition-list`, the script sets `apple-tool:,teamid:<TEAMID>` without adding the helper path, then signed-helper reads check whether partition-list trust alone is prompt-free.

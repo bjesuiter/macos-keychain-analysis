@@ -54,7 +54,11 @@
     "proof:16": "bun run proofs/16-original-fix-access-flow/proof.ts",
     "proof:16:cleanup": "bun run proofs/16-original-fix-access-flow/proof.ts --cleanup",
     "proof:17": "bun run proofs/17-take-ownership-flow/proof.ts",
-    "proof:17:cleanup": "bun run proofs/17-take-ownership-flow/proof.ts --cleanup"
+    "proof:17:cleanup": "bun run proofs/17-take-ownership-flow/proof.ts --cleanup",
+    "proof:18": "PROOF18_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/18-security-created-no-t-always-allow-signed-probe/proof.ts",
+    "proof:18:cleanup": "PROOF18_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/18-security-created-no-t-always-allow-signed-probe/proof.ts --cleanup",
+    "proof:19": "PROOF19_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/19-security-created-set-teamid-partition-only/proof.ts",
+    "proof:19:cleanup": "PROOF19_CODESIGN_IDENTITY=584EFC30BFC2F2BAC6BC900457C8BB19671D0D18 bun run proofs/19-security-created-set-teamid-partition-only/proof.ts --cleanup"
   },
   "devDependencies": {
     "@types/bun": "latest"
